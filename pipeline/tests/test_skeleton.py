@@ -44,7 +44,7 @@ def test_jobs_run(job: str) -> None:
 
 def test_container_builds() -> None:
     container = build_container()
-    assert container.settings.user_agent.startswith("PSXAlertsBot/")
+    assert container.settings.user_agent.startswith("ShareKhabarBot/")
 
 
 def test_interfaces_exist() -> None:

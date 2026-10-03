@@ -1,7 +1,7 @@
 [project]
 name = "psx-pipeline"
 version = "0.1.0"
-description = "PSX Alerts pipeline: ingest, process, compose and publish PSX announcements"
+description = "ShareKhabar pipeline: ingest, process, compose and publish PSX announcements"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pydantic>=2.8",

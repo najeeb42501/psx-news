@@ -10,6 +10,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
+BRAND_NAME = "ShareKhabar"
+DEFAULT_CONTACT_EMAIL = "najeeb08089@gmail.com"
+
 
 def _load_dotenv(path: Path = ROOT / ".env") -> None:
     """Minimal .env loader; real environment variables always win."""
@@ -26,21 +29,20 @@ def _load_dotenv(path: Path = ROOT / ".env") -> None:
 @dataclass(frozen=True)
 class Settings:
     database_url: str | None
-    contact_email: str | None
+    contact_email: str
     repo_adapter: str
     publishers: tuple[str, ...]
 
     @property
     def user_agent(self) -> str:
-        contact = self.contact_email or "contact-not-set"
-        return f"PSXAlertsBot/0.1 (+mailto:{contact})"
+        return f"{BRAND_NAME}Bot/0.1 (+mailto:{self.contact_email})"
 
 
 def load_settings() -> Settings:
     _load_dotenv()
     return Settings(
         database_url=os.environ.get("DATABASE_URL"),
-        contact_email=os.environ.get("CONTACT_EMAIL"),
+        contact_email=os.environ.get("CONTACT_EMAIL") or DEFAULT_CONTACT_EMAIL,
         repo_adapter=os.environ.get("REPO_ADAPTER", "postgres"),
         publishers=tuple(
             p.strip() for p in os.environ.get("PUBLISHERS", "whatsapp_queue").split(",") if p.strip()

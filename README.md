@@ -1,6 +1,6 @@
-# PSX Alerts
+# ShareKhabar (شیئر خبر)
 
-PSX company announcements and market-moving news, summarised in plain English and Urdu, published on a free website and pushed to a WhatsApp Channel, a Facebook Page and X.
+ShareKhabar turns PSX company announcements and market-moving news into short summaries in plain English and Urdu, published on a free website and pushed to a WhatsApp Channel, a Facebook Page and X.
 
 > Information only, not investment advice. We do not recommend buying or selling any security.
 

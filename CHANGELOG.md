@@ -9,3 +9,4 @@
 - A test enforcing that `pipeline/core/` never imports vendor SDKs.
 - Website placeholder with the EN/UR disclaimer in the footer.
 - `tests.yml` GitHub Actions workflow runs pytest, lint and the web build on every push.
+- Brand: **ShareKhabar** (شیئر خبر), replacing the "PSX Alerts" placeholder. Name, tagline and contact email live in `web/lib/brand.ts` and `pipeline/config/settings.py`.

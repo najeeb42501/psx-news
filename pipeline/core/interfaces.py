@@ -11,6 +11,7 @@ from typing import Protocol, runtime_checkable
 from pydantic import BaseModel
 
 from pipeline.core.models import (
+    Company,
     Document,
     Item,
     ItemRef,
@@ -18,6 +19,8 @@ from pipeline.core.models import (
     Post,
     PublishResult,
     RawItem,
+    SourceRecord,
+    Summary,
 )
 
 
@@ -42,11 +45,27 @@ class LLMProvider(Protocol):
 
 @runtime_checkable
 class Repository(Protocol):
+    """Storage. Every write is idempotent: re-running a job never duplicates rows."""
+
+    def upsert_company(self, company: Company) -> None: ...
+
+    def upsert_source(self, source: SourceRecord) -> None: ...
+
     def save_document(self, doc: Document) -> int | None: ...  # None if already stored
 
-    def save_item(self, item: Item) -> int: ...
+    def save_item(self, item: Item) -> int: ...  # upsert on document_id
+
+    def save_summary(self, summary: Summary) -> int: ...  # upsert on (item_id, lang, prompt_version)
 
     def queue_post(self, post: Post) -> int | None: ...  # None if duplicate
+
+    def get_document(self, doc_id: int) -> Document | None: ...
+
+    def get_item(self, item_id: int) -> Item | None: ...
+
+    def get_summaries(self, item_id: int) -> list[Summary]: ...
+
+    def get_post(self, post_id: int) -> Post | None: ...
 
 
 @runtime_checkable

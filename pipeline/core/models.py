@@ -18,6 +18,25 @@ DocumentStatus = Literal["new", "processed", "failed", "skipped"]
 ReviewStatus = Literal["auto", "needs_review", "approved", "hidden"]
 
 
+class Company(BaseModel):
+    symbol: str
+    name: str
+    sector: str | None = None
+    face_value: float = 10
+    aliases: list[str] = Field(default_factory=list)
+
+
+class SourceRecord(BaseModel):
+    """A row in the sources table (configured in config/sources.yaml)."""
+
+    id: str
+    kind: str
+    url: str
+    enabled: bool = True
+    last_run_at: datetime | None = None
+    last_error: str | None = None
+
+
 class RawItem(BaseModel):
     """Something a Source found, before it is stored."""
 
@@ -47,6 +66,7 @@ class Document(BaseModel):
     text: str | None = None
     used_ocr: bool = False
     status: DocumentStatus = "new"
+    first_seen_at: datetime | None = None
 
 
 class Item(BaseModel):
@@ -58,6 +78,7 @@ class Item(BaseModel):
     facts: dict[str, Any] = Field(default_factory=dict)
     confidence: float | None = None
     review_status: ReviewStatus = "auto"
+    created_at: datetime | None = None
 
 
 class Summary(BaseModel):
@@ -68,6 +89,7 @@ class Summary(BaseModel):
     body: str
     model: str
     prompt_version: str
+    created_at: datetime | None = None
 
 
 class Post(BaseModel):
@@ -81,6 +103,9 @@ class Post(BaseModel):
     link_url: str | None = None
     status: PostStatus = "queued"
     scheduled_for: datetime | None = None
+    posted_at: datetime | None = None
+    external_id: str | None = None
+    error: str | None = None
 
 
 class PublishResult(BaseModel):

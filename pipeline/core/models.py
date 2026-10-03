@@ -24,6 +24,7 @@ class Company(BaseModel):
     sector: str | None = None
     face_value: float = 10
     aliases: list[str] = Field(default_factory=list)
+    face_value_confirmed: bool = False  # True only once a filing has confirmed it
 
 
 class SourceRecord(BaseModel):
@@ -116,6 +117,17 @@ class Post(BaseModel):
 class PublishResult(BaseModel):
     ok: bool
     external_id: str | None = None
+    error: str | None = None
+
+
+class LLMCall(BaseModel):
+    provider: str
+    model: str
+    purpose: str
+    document_id: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    ok: bool
     error: str | None = None
 
 

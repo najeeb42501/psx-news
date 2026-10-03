@@ -11,6 +11,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 BRAND_NAME = "ShareKhabar"
+# AI models tried in order (provider:model); each model has its own free quota.
+# Summaries need good Urdu; fact extraction is English and every number is verified by code,
+# so it can use smaller models. Change via LLM_CHAIN / LLM_EXTRACT_CHAIN in .env.
+DEFAULT_LLM_CHAIN = (
+    "gemini:gemini-3.6-flash, gemini:gemini-3.5-flash, gemini:gemini-3.1-flash-lite, "
+    "gemini:gemini-3.5-flash-lite, groq:openai/gpt-oss-120b"
+)
+DEFAULT_LLM_EXTRACT_CHAIN = (
+    "gemini:gemini-3.5-flash-lite, gemini:gemini-3.1-flash-lite, groq:openai/gpt-oss-120b, "
+    "groq:qwen/qwen3.8-27b, groq:openai/gpt-oss-20b"
+)
 DEFAULT_CONTACT_EMAIL = "najeeb08089@gmail.com"
 
 
@@ -32,6 +43,10 @@ class Settings:
     contact_email: str
     repo_adapter: str
     publishers: tuple[str, ...]
+    llm_chain: str = DEFAULT_LLM_CHAIN
+    llm_extract_chain: str = DEFAULT_LLM_EXTRACT_CHAIN
+    gemini_api_key: str | None = None
+    groq_api_key: str | None = None
 
     @property
     def user_agent(self) -> str:
@@ -47,4 +62,8 @@ def load_settings() -> Settings:
         publishers=tuple(
             p.strip() for p in os.environ.get("PUBLISHERS", "whatsapp_queue").split(",") if p.strip()
         ),
+        llm_chain=os.environ.get("LLM_CHAIN") or DEFAULT_LLM_CHAIN,
+        llm_extract_chain=os.environ.get("LLM_EXTRACT_CHAIN") or DEFAULT_LLM_EXTRACT_CHAIN,
+        gemini_api_key=os.environ.get("GEMINI_API_KEY") or None,
+        groq_api_key=os.environ.get("GROQ_API_KEY") or None,
     )

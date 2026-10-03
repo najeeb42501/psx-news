@@ -40,3 +40,15 @@
 - `seed_companies` job: 1,031 symbols from PSX. Blank names fall back to the symbol, and never overwrite a real name.
 - `ingest` job with `--date` (one Pakistan-time day) and `--source`.
 - CI installs Tesseract (with Urdu) so OCR tests run there too.
+
+## Phase 3 – AI processing (2026-10-04)
+
+- OpenAI-compatible LLM adapter with a fallback chain from `LLM_CHAIN`: Gemini 3.6 Flash, then Gemini 3.5 Flash, then Groq gpt-oss-120b.
+  - It backs off once on rate limits, then moves to the next model.
+  - Every call is logged with tokens in a new `llm_calls` table (migration 004).
+- Classification: title rules built from real PSX titles cover about 94% of items; leftovers go to the AI in one batched call. The category sets importance and summary method (template / dates / llm).
+- Facts extraction: every number and date carries its source quote. Code verifies it against the document text, takes signs from the source, and drops what fails. Dividend Rs/share is computed only from a confirmed face value, which is learned from filings that state both % and Rs.
+- Summaries in EN + UR, written from verified facts only (fixed sentences for routine items). The Urdu glossary is in `config/glossary_ur.yaml`.
+- Quality gate: numbers check, context-aware banned advice/prediction phrases in both languages, length and sentence limits, Western digits only. One retry, then `needs_review`.
+- Per-run AI budget (`--max-ai`). If all models are down, AI items wait for the next run and template items still go through.
+- Versioned prompt files (`classify_v1`, `extract_v1`, `summarise_v1`), stored with every summary.

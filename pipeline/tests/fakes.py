@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from pipeline.core.models import Company, Document, Item, Post, SourceRecord, Summary
+from pipeline.core.models import Company, Document, Item, LLMCall, Post, SourceRecord, Summary
 
 
 class InMemoryRepository:
@@ -14,6 +14,7 @@ class InMemoryRepository:
         self.items: dict[int, Item] = {}
         self.summaries: dict[int, Summary] = {}
         self.posts: dict[int, Post] = {}
+        self.llm_calls: list[LLMCall] = []
         self._next_id = 0
 
     def _id(self) -> int:
@@ -112,3 +113,29 @@ class InMemoryRepository:
 
     def get_post(self, post_id: int) -> Post | None:
         return self.posts.get(post_id)
+
+    # --- processing ---
+
+    def documents_to_process(self, limit: int) -> list[Document]:
+        new = [d for d in self.documents.values() if d.status == "new"]
+        return sorted(new, key=lambda d: d.id or 0)[:limit]
+
+    def set_document_status(self, doc_id: int, status: str) -> None:
+        self.documents[doc_id] = self.documents[doc_id].model_copy(update={"status": status})
+
+    def reset_for_reprocessing(self, categories: list[str]) -> int:
+        ids = {i.document_id for i in self.items.values() if i.category in categories}
+        for doc_id in ids:
+            self.set_document_status(doc_id, "new")
+        return len(ids)
+
+    def get_company(self, symbol: str) -> Company | None:
+        return self.companies.get(symbol)
+
+    def confirm_face_value(self, symbol: str, face_value: float) -> None:
+        self.companies[symbol] = self.companies[symbol].model_copy(
+            update={"face_value": face_value, "face_value_confirmed": True}
+        )
+
+    def log_llm_call(self, call: LLMCall) -> None:
+        self.llm_calls.append(call)

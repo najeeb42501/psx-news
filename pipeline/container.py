@@ -14,10 +14,17 @@ from typing import Any
 import yaml
 
 from pipeline.config.settings import Settings, load_settings
-from pipeline.core.interfaces import DocumentParser, Publisher, Repository, Source
+from pipeline.core.interfaces import DocumentParser, LLMProvider, Publisher, Repository, Source
 from pipeline.core.models import SourceRecord
+from pipeline.core.process import ProcessConfig
 
-SOURCES_YAML = Path(__file__).resolve().parent / "config" / "sources.yaml"
+CONFIG_DIR = Path(__file__).resolve().parent / "config"
+SOURCES_YAML = CONFIG_DIR / "sources.yaml"
+PROMPTS_DIR = CONFIG_DIR / "prompts"
+GLOSSARY = CONFIG_DIR / "glossary_ur.yaml"
+# Bump a version by adding e.g. prompts/summarise_v2.md and changing it here; the
+# version is stored with every summary.
+PROMPT_VERSIONS = {"classify": "classify_v1", "extract": "extract_v3", "summarise": "summarise_v3"}
 
 
 def load_source_configs(path: Path = SOURCES_YAML) -> list[dict[str, Any]]:
@@ -70,6 +77,32 @@ class Container:
         from pipeline.adapters.parsers.pdf_ocr import PdfOcrParser
 
         return PdfOcrParser()
+
+    def _llm_from_chain(self, chain: str) -> LLMProvider:
+        from pipeline.adapters.llm.openai_compat import FallbackLLM, OpenAICompatClient, parse_chain
+
+        specs = parse_chain(chain, {"gemini": self.settings.gemini_api_key, "groq": self.settings.groq_api_key})
+        if not specs:
+            raise RuntimeError("No AI model configured: set GEMINI_API_KEY and/or GROQ_API_KEY (see .env.example)")
+        return FallbackLLM([OpenAICompatClient(s) for s in specs], log=self.repo.log_llm_call)
+
+    @cached_property
+    def llm(self) -> LLMProvider:
+        """Classification and EN/UR summaries."""
+        return self._llm_from_chain(self.settings.llm_chain)
+
+    @cached_property
+    def extract_llm(self) -> LLMProvider:
+        """Fact extraction (English; every number is verified by code)."""
+        return self._llm_from_chain(self.settings.llm_extract_chain)
+
+    def process_config(self, max_ai_docs: int = 25) -> ProcessConfig:
+        return ProcessConfig(
+            prompts={k: (PROMPTS_DIR / f"{v}.md").read_text(encoding="utf-8") for k, v in PROMPT_VERSIONS.items()},
+            versions=dict(PROMPT_VERSIONS),
+            glossary=yaml.safe_load(GLOSSARY.read_text(encoding="utf-8")),
+            max_ai_docs=max_ai_docs,
+        )
 
     def source_records(self) -> list[SourceRecord]:
         return [

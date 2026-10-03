@@ -36,7 +36,7 @@ def test_core_imports_no_vendor_sdk(path: Path) -> None:
     assert not bad, f"{path.name} imports non-core modules: {bad}"
 
 
-@pytest.mark.parametrize("job", ["process", "compose", "publish"])  # still stubs
+@pytest.mark.parametrize("job", ["compose", "publish"])  # still stubs
 def test_jobs_run(job: str) -> None:
     module = importlib.import_module(f"pipeline.jobs.{job}")
     assert module.main() == 0

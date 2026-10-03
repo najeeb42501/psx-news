@@ -91,4 +91,35 @@ uv run python -m pipeline.jobs.ingest --source psx_companies
 
 **Idempotency.** Each document is keyed by a hash of its stable source id: the PSX announcement id, or the RSS guid. Re-running stores nothing twice. An item whose download fails is not stored, so the next run retries it. If a PDF can't be read, the notice image is tried instead.
 
-More sections (AI, publishing, automation, runbook) are added as each phase is built.
+## AI processing
+
+```bash
+uv run python -m pipeline.jobs.process              # classify, extract, summarise and check all new documents
+uv run python -m pipeline.jobs.process --max-ai 40  # allow more AI documents in this run (default 25)
+```
+
+**The steps** (all in vendor-free `pipeline/core/`):
+1. **Classify** (`classify.py`): title rules first; leftovers go to the AI in one batched call. The category sets the importance (0 = kept out of the main feed, 3 = post-worthy) and how the summary is written:
+   - `template`: fixed EN/UR sentences from the title, for routine items (no AI).
+   - `dates`: the AI extracts dates only, and code writes the summary (board meetings, AGMs, book closures, briefings).
+   - `llm`: the AI extracts facts, then writes the summary from the verified facts (results, dividends, bonus/right shares, material information, market news).
+2. **Extract** (`extract.py`, `facts.py`): the AI returns facts JSON in which every number and date carries the exact quote it came from. Code then checks each one:
+   - The quote must be found in the document (tolerant of OCR spacing).
+   - The number must be inside its quote.
+   - The sign comes from the source: brackets or "loss" mean negative.
+   - Anything that fails is dropped. Dividend Rs/share is computed only when the face value is confirmed by a filing, never assumed.
+3. **Summarise** (`summarise.py`): EN + UR summaries, written only from the verified facts. Urdu is written directly using [glossary_ur.yaml](pipeline/config/glossary_ur.yaml).
+4. **Quality gate** (`quality.py`), on both languages:
+   - Every number must come from the facts or the title.
+   - No advice or prediction wording.
+   - Headline ≤ 90 characters, body ≤ 3 sentences, and Western digits only.
+
+   A failing summary gets one retry with the problems listed. If it still fails, it is stored as `needs_review`: not shown and not posted.
+
+**Models** are set by `LLM_CHAIN` in `.env` and tried in order (default: `gemini:gemini-3.6-flash, gemini:gemini-3.5-flash, groq:openai/gpt-oss-120b`).
+- All go through one OpenAI-compatible client. To switch models or providers, change `LLM_CHAIN`.
+- Every call is logged in `llm_calls` with its token counts.
+- Each summary stores the model and prompt version.
+- **Prompts** are versioned files in `pipeline/config/prompts/`. To change one, add e.g. `summarise_v2.md` and update `PROMPT_VERSIONS` in `container.py`.
+
+More sections (publishing, automation, runbook) are added as each phase is built.

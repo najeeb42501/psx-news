@@ -13,7 +13,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from pipeline.core.models import Company, Document, Item, Post, SourceRecord, Summary
+from pipeline.core.models import Company, Document, Item, LLMCall, Post, SourceRecord, Summary
 
 
 def connect(database_url: str) -> psycopg.Connection[dict[str, Any]]:
@@ -169,6 +169,55 @@ class PostgresRepository:
                 post.model_dump(exclude={"id", "posted_at", "external_id", "error"}),
             ).fetchone()
         return row["id"] if row else None
+
+    # --- processing ---------------------------------------------------------
+
+    def documents_to_process(self, limit: int) -> list[Document]:
+        rows = self.conn.execute(
+            "select * from documents where status = 'new' order by first_seen_at, id limit %s", (limit,)
+        ).fetchall()
+        return [Document(**r) for r in rows]
+
+    def set_document_status(self, doc_id: int, status: str) -> None:
+        with self.conn.transaction():
+            self.conn.execute("update documents set status = %s where id = %s", (status, doc_id))
+
+    def reset_for_reprocessing(self, categories: list[str]) -> int:
+        with self.conn.transaction():
+            cur = self.conn.execute(
+                "update documents set status = 'new' where id in "
+                "(select document_id from items where category = any(%s))",
+                (categories,),
+            )
+        return cur.rowcount
+
+    def get_company(self, symbol: str) -> Company | None:
+        row = self.conn.execute(
+            "select symbol, name, sector, face_value, aliases, face_value_confirmed from companies where symbol = %s",
+            (symbol,),
+        ).fetchone()
+        if not row:
+            return None
+        row["face_value"] = float(row["face_value"]) if row["face_value"] is not None else 10
+        return Company(**row)
+
+    def confirm_face_value(self, symbol: str, face_value: float) -> None:
+        with self.conn.transaction():
+            self.conn.execute(
+                "update companies set face_value = %s, face_value_confirmed = true, updated_at = now() where symbol = %s",
+                (face_value, symbol),
+            )
+
+    def log_llm_call(self, call: LLMCall) -> None:
+        with self.conn.transaction():
+            self.conn.execute(
+                """
+                insert into llm_calls (provider, model, purpose, document_id, prompt_tokens, completion_tokens, ok, error)
+                values (%(provider)s, %(model)s, %(purpose)s, %(document_id)s, %(prompt_tokens)s,
+                        %(completion_tokens)s, %(ok)s, %(error)s)
+                """,
+                call.model_dump(),
+            )
 
     # --- reads --------------------------------------------------------------
 

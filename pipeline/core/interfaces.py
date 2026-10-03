@@ -15,6 +15,7 @@ from pipeline.core.models import (
     Document,
     Item,
     ItemRef,
+    LLMCall,
     ParsedDoc,
     Post,
     PublishResult,
@@ -38,9 +39,17 @@ class DocumentParser(Protocol):
     def extract_text(self, raw: RawItem) -> ParsedDoc: ...
 
 
+class LLMUnavailableError(RuntimeError):
+    """Every configured model is rate-limited or down; try again on a later run."""
+
+
 @runtime_checkable
 class LLMProvider(Protocol):
-    def complete_json(self, prompt: str, schema: type[BaseModel]) -> BaseModel: ...
+    last_model: str  # "provider:model" that answered the most recent call (stored with summaries)
+
+    def complete_json(
+        self, prompt: str, schema: type[BaseModel], purpose: str = "", document_id: int | None = None
+    ) -> BaseModel: ...
 
     def complete_text(self, prompt: str, max_tokens: int) -> str: ...
 
@@ -80,6 +89,20 @@ class Repository(Protocol):
     def get_summaries(self, item_id: int) -> list[Summary]: ...
 
     def get_post(self, post_id: int) -> Post | None: ...
+
+    # --- processing ---
+
+    def documents_to_process(self, limit: int) -> list[Document]: ...  # status 'new', oldest first
+
+    def set_document_status(self, doc_id: int, status: str) -> None: ...
+
+    def reset_for_reprocessing(self, categories: list[str]) -> int: ...  # docs of these item categories -> 'new'
+
+    def get_company(self, symbol: str) -> Company | None: ...
+
+    def confirm_face_value(self, symbol: str, face_value: float) -> None: ...
+
+    def log_llm_call(self, call: LLMCall) -> None: ...
 
 
 @runtime_checkable

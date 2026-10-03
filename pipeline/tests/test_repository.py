@@ -115,3 +115,40 @@ def test_post_queue_no_duplicates(repo: Repository) -> None:
     brief = Post(kind="morning_brief", platform="facebook", text_en="en", text_ur="ur", scheduled_for=slot)
     assert repo.queue_post(brief) is not None
     assert repo.queue_post(brief) is None
+
+
+def test_ingest_helpers(repo: Repository) -> None:
+    _seed(repo)
+    repo.upsert_companies([Company(symbol="TESTCO", name="Renamed Ltd", sector="New"),
+                           Company(symbol="TESTC2", name="Second Ltd")])
+    repo.ensure_company("TESTC2", "should not overwrite")
+    repo.ensure_company("TESTC3", "Auto Added")
+    assert {"TESTCO", "TESTC2", "TESTC3"} <= repo.known_symbols()
+
+    doc = _doc()
+    repo.save_document(doc)
+    assert repo.known_hashes([doc.content_hash, "missing-hash"]) == {doc.content_hash}
+    assert repo.known_hashes([]) == set()
+
+    repo.record_source_run("test_source", "boom")
+    src = repo.get_source("test_source")
+    assert src is not None and src.last_error == "boom" and src.last_run_at is not None
+    repo.record_source_run("test_source", None)
+    assert repo.get_source("test_source").last_error is None
+    assert repo.get_source("nope") is None
+
+
+def test_reseeding_keeps_real_names(repo: Repository) -> None:
+    repo.ensure_company("TESTR1", "Test Rights Issue Ltd")  # added from an announcement row
+    repo.upsert_companies([Company(symbol="TESTR1", name="TESTR1", sector="CHEMICAL")])  # blank name in PSX list
+    if isinstance(repo, InMemoryRepository):
+        assert repo.companies["TESTR1"].name == "Test Rights Issue Ltd"
+    else:
+        assert repo.conn.execute("select name from companies where symbol = 'TESTR1'").fetchone()["name"] == "Test Rights Issue Ltd"
+    repo.upsert_companies([Company(symbol="TESTR1", name="Proper Name Ltd")])
+    if isinstance(repo, InMemoryRepository):
+        name, sector = repo.companies["TESTR1"].name, repo.companies["TESTR1"].sector
+    else:
+        row = repo.conn.execute("select name, sector from companies where symbol = 'TESTR1'").fetchone()
+        name, sector = row["name"], row["sector"]
+    assert (name, sector) == ("Proper Name Ltd", "CHEMICAL")

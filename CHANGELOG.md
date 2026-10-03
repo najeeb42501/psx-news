@@ -20,3 +20,23 @@
 - `Repository` interface extended (companies, sources, summaries, reads). `PostgresRepository` adapter with idempotent upserts. `InMemoryRepository` fake for tests.
 - Contract tests run on both the fake and real Postgres. Access tests act as the website's public role.
 - CI runs the DB tests against a throwaway Postgres 17.
+
+## Phase 2 – Data ingestion (2026-10-04)
+
+- PSX portal sources, built from inspecting the real pages:
+  - The portal requires a per-page request token (`X-Req-Id`).
+  - Company announcements, PSX notices and SECP notices share one adapter (`type` C, E or B).
+  - Symbols for notices are read from the title and kept only if the company is listed.
+- RSS source keeps headline, link and a description of at most 600 characters, with an optional keyword filter (used for Business Recorder).
+- Text extraction: pdfplumber plus Tesseract OCR.
+  - Most PSX PDFs are scans.
+  - Image-only notices are OCR'd from the portal's GIF.
+  - Urdu OCR runs only on Urdu-script pages, so digits aren't corrupted.
+- Vendor-free `core/ingest.py`:
+  - Dedupes on a hash of the source's stable id, and never re-downloads known items.
+  - Adds unknown companies (e.g. `MCBIM-FUNDS`) from the announcement row.
+  - If a PDF can't be read, it tries the image instead.
+  - Failed items are retried on the next run.
+- `seed_companies` job: 1,031 symbols from PSX. Blank names fall back to the symbol, and never overwrite a real name.
+- `ingest` job with `--date` (one Pakistan-time day) and `--source`.
+- CI installs Tesseract (with Urdu) so OCR tests run there too.

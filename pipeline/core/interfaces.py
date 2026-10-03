@@ -28,7 +28,9 @@ from pipeline.core.models import (
 class Source(Protocol):
     id: str
 
-    def fetch_new(self, since: datetime) -> list[RawItem]: ...
+    def fetch_new(self, since: datetime, until: datetime | None = None) -> list[RawItem]: ...
+
+    def fetch_content(self, raw: RawItem) -> RawItem: ...  # download attachments[0], if any
 
 
 @runtime_checkable
@@ -49,7 +51,19 @@ class Repository(Protocol):
 
     def upsert_company(self, company: Company) -> None: ...
 
+    def upsert_companies(self, companies: list[Company]) -> None: ...
+
+    def ensure_company(self, symbol: str, name: str) -> None: ...  # insert if missing, never overwrite
+
+    def known_symbols(self) -> set[str]: ...
+
     def upsert_source(self, source: SourceRecord) -> None: ...
+
+    def get_source(self, source_id: str) -> SourceRecord | None: ...
+
+    def record_source_run(self, source_id: str, error: str | None) -> None: ...
+
+    def known_hashes(self, hashes: list[str]) -> set[str]: ...  # which content_hashes are stored
 
     def save_document(self, doc: Document) -> int | None: ...  # None if already stored
 

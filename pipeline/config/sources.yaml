@@ -1,0 +1,41 @@
+# Sources the ingest job reads. To add one: add an entry here; a new *kind*
+# also needs one adapter in pipeline/adapters/sources/ registered in container.py.
+#
+# psx_announcements `type`: C = company announcements, E = PSX notices, B = SECP notices.
+# rss `keywords`: keep only entries whose title/description mention one of these.
+
+sources:
+  - id: psx_companies
+    kind: psx_announcements
+    url: https://dps.psx.com.pk/announcements/companies
+    type: C
+
+  - id: psx_notices
+    kind: psx_announcements
+    url: https://dps.psx.com.pk/announcements/psx
+    type: E
+
+  - id: secp_notices
+    kind: psx_announcements
+    url: https://dps.psx.com.pk/announcements/secp
+    type: B
+
+  - id: dawn_business
+    kind: rss
+    url: https://www.dawn.com/feeds/business
+
+  - id: brecorder_latest
+    kind: rss
+    url: https://www.brecorder.com/feeds/latest-news
+    keywords: [PSX, KSE, KSE-100, stock, stocks, shares, bourse, dividend, IPO, SECP,
+               SBP, State Bank, policy rate, interest rate, IMF, budget, inflation, CPI,
+               petrol, petroleum, diesel, OGRA, rupee, dollar, reserves, remittances,
+               current account, circular debt, T-bill, PIB, Eurobond, sukuk]
+
+  - id: tribune_business
+    kind: rss
+    url: https://tribune.com.pk/feed/business
+
+  - id: propakistani_business
+    kind: rss
+    url: https://propakistani.pk/category/business/feed/

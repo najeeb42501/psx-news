@@ -59,4 +59,36 @@ Any Postgres 15+ works. The MVP uses Supabase's free plan (Mumbai region).
 
 To switch database hosts, point `DATABASE_URL` at the new Postgres and run `migrate`.
 
-More sections (database, sources, AI, publishing, automation, runbook) are added as each phase is built.
+## Ingestion
+
+```bash
+uv run python -m pipeline.jobs.seed_companies             # load/refresh companies from PSX's symbol list
+uv run python -m pipeline.jobs.ingest                     # normal run: everything since each source's last run
+uv run python -m pipeline.jobs.ingest --date 2026-10-02   # one Pakistan-time day (backfill / checking)
+uv run python -m pipeline.jobs.ingest --source psx_companies
+```
+
+**Sources** are listed in [pipeline/config/sources.yaml](pipeline/config/sources.yaml): PSX company announcements, PSX notices, SECP notices and four RSS feeds.
+- To add a feed, add an entry there.
+- A new kind of source needs one adapter in `pipeline/adapters/sources/` and one line in `SOURCE_FACTORIES` in `pipeline/container.py`.
+
+**How the PSX portal works** (details in `pipeline/adapters/sources/psx.py`):
+- Every page embeds a request token. Data requests (`POST /announcements`, `GET /symbols`) must send it back as `X-Req-Id`, so the scraper loads the page first, like a browser does.
+- At most 100 rows come back per request; a market day has about 125 company announcements.
+- If PSX changes this scheme, the source fails with `PsxBlockedError`.
+
+**Politeness.** Every request identifies us (`ShareKhabarBot/0.1 (+mailto:…)`). Requests are spaced at least 1 s apart, with back-off and retries on errors. Items already stored are never downloaded again.
+
+**Text extraction.**
+- Most PSX PDFs are scans, so OCR is the normal path.
+- pdfplumber reads the text layer, and Tesseract OCRs pages that have none. It also reads the notice image (`/download/image/<id>-1.gif`), which is the only file for some announcements, such as "Board Meeting In Progress".
+- Each page's script is detected first: English pages use `eng`, Urdu pages `urd+eng`. Running Urdu on English pages turns some digits into Urdu ones.
+- Limits keep the free database small: 15 pages, 6 OCR'd pages and 40,000 characters per document.
+
+**Tesseract install.**
+- Windows: the UB Mannheim installer, with **Urdu** ticked under "Additional language data". It is found automatically in `C:\Program Files\Tesseract-OCR`, or set `TESSERACT_CMD`.
+- Ubuntu: `apt-get install tesseract-ocr tesseract-ocr-urd`.
+
+**Idempotency.** Each document is keyed by a hash of its stable source id: the PSX announcement id, or the RSS guid. Re-running stores nothing twice. An item whose download fails is not stored, so the next run retries it. If a PDF can't be read, the notice image is tried instead.
+
+More sections (AI, publishing, automation, runbook) are added as each phase is built.

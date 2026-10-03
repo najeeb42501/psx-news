@@ -21,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-urd
       - run: uv sync
       - run: uv run python -m pipeline.jobs.migrate
       - run: uv run pytest -q -rs

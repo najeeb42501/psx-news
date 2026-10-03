@@ -47,6 +47,49 @@ class PostgresRepository:
                 company.model_dump(),
             )
 
+    def upsert_companies(self, companies: list[Company]) -> None:
+        with self.conn.transaction(), self.conn.cursor() as cur:
+            cur.executemany(
+                """
+                insert into companies (symbol, name, sector, face_value, aliases)
+                values (%(symbol)s, %(name)s, %(sector)s, %(face_value)s, %(aliases)s)
+                on conflict (symbol) do update set
+                  -- a bare symbol as name is a placeholder; never replace a real name with it
+                  name = case when excluded.name = excluded.symbol then companies.name else excluded.name end,
+                  sector = coalesce(excluded.sector, companies.sector), updated_at = now()
+                """,
+                [c.model_dump() for c in companies],
+            )
+
+    def ensure_company(self, symbol: str, name: str) -> None:
+        with self.conn.transaction():
+            self.conn.execute(
+                "insert into companies (symbol, name) values (%s, %s) on conflict (symbol) do nothing",
+                (symbol, name),
+            )
+
+    def known_symbols(self) -> set[str]:
+        return {r["symbol"] for r in self.conn.execute("select symbol from companies").fetchall()}
+
+    def get_source(self, source_id: str) -> SourceRecord | None:
+        row = self.conn.execute("select * from sources where id = %s", (source_id,)).fetchone()
+        return SourceRecord(**row) if row else None
+
+    def record_source_run(self, source_id: str, error: str | None) -> None:
+        with self.conn.transaction():
+            self.conn.execute(
+                "update sources set last_run_at = now(), last_error = %s where id = %s",
+                (error, source_id),
+            )
+
+    def known_hashes(self, hashes: list[str]) -> set[str]:
+        if not hashes:
+            return set()
+        rows = self.conn.execute(
+            "select content_hash from documents where content_hash = any(%s)", (hashes,)
+        ).fetchall()
+        return {r["content_hash"] for r in rows}
+
     def upsert_source(self, source: SourceRecord) -> None:
         with self.conn.transaction():
             self.conn.execute(

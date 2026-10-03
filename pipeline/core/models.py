@@ -41,12 +41,17 @@ class RawItem(BaseModel):
     """Something a Source found, before it is stored."""
 
     source_id: str
-    url: str
+    external_id: str  # stable id at the source (PSX announcement id, RSS guid/link)
+    url: str  # link users are sent to (the original filing or article)
     title: str
     symbol: str | None = None
+    symbol_guessed: bool = False  # symbol read from the title, keep only if it is a known company
+    company_name: str | None = None
     published_at: datetime | None = None
-    content: bytes | None = None  # PDF bytes or article body, if fetched
-    content_type: str | None = None
+    attachments: list[str] = Field(default_factory=list)  # files to download, best first
+    summary: str | None = None  # feed description (RSS); never the full article
+    content: bytes | None = None  # downloaded attachment, if any
+    content_type: str | None = None  # 'application/pdf', 'image/gif', ...
     extra: dict[str, Any] = Field(default_factory=dict)
 
 

@@ -23,8 +23,37 @@ class InMemoryRepository:
     def upsert_company(self, company: Company) -> None:
         self.companies[company.symbol] = company
 
+    def upsert_companies(self, companies: list[Company]) -> None:
+        for c in companies:
+            old = self.companies.get(c.symbol)
+            self.companies[c.symbol] = c if not old else old.model_copy(update={
+                "name": old.name if c.name == c.symbol else c.name,
+                "sector": c.sector or old.sector,
+            })
+
+    def ensure_company(self, symbol: str, name: str) -> None:
+        self.companies.setdefault(symbol, Company(symbol=symbol, name=name))
+
+    def known_symbols(self) -> set[str]:
+        return set(self.companies)
+
     def upsert_source(self, source: SourceRecord) -> None:
-        self.sources[source.id] = source
+        old = self.sources.get(source.id)
+        self.sources[source.id] = source if not old else old.model_copy(
+            update={"kind": source.kind, "url": source.url, "enabled": source.enabled}
+        )
+
+    def get_source(self, source_id: str) -> SourceRecord | None:
+        return self.sources.get(source_id)
+
+    def record_source_run(self, source_id: str, error: str | None) -> None:
+        self.sources[source_id] = self.sources[source_id].model_copy(
+            update={"last_run_at": datetime.now(UTC), "last_error": error}
+        )
+
+    def known_hashes(self, hashes: list[str]) -> set[str]:
+        stored = {d.content_hash for d in self.documents.values()}
+        return {h for h in hashes if h in stored}
 
     def save_document(self, doc: Document) -> int | None:
         if any(d.content_hash == doc.content_hash for d in self.documents.values()):

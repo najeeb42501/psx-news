@@ -15,7 +15,7 @@ Platform = Literal["facebook", "x", "whatsapp_queue"]
 PostKind = Literal["alert", "morning_brief", "evening_digest"]
 PostStatus = Literal["queued", "ready", "posted", "failed", "skipped"]
 DocumentStatus = Literal["new", "processed", "failed", "skipped"]
-ReviewStatus = Literal["auto", "needs_review", "approved", "hidden"]
+ReviewStatus = Literal["auto", "needs_review", "approved", "hidden", "duplicate"]
 
 
 class Company(BaseModel):
@@ -36,6 +36,9 @@ class SourceRecord(BaseModel):
     enabled: bool = True
     last_run_at: datetime | None = None
     last_error: str | None = None
+    # Everything this source published before this time has been captured (no failed downloads).
+    # The next run starts here, so a failed run or a failed download is never skipped.
+    last_success_at: datetime | None = None
 
 
 class RawItem(BaseModel):

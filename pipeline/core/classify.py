@@ -114,6 +114,9 @@ NOTICE_RULES = _rules([
 ])
 
 NEWS_RULES = _rules([
+    # Foreign markets with no PSX link ("Bond yields, AI spending threaten US stocks"): not for this feed.
+    (r"\b(us|u\.s\.|american|wall street|dow|nasdaq|s&p|european|asian|chinese|japanese|indian|global|world)"
+     r"\s+(stocks?|shares|equities|stock markets?|bourses?|indices)\b|\bwall street\b", "other_news"),
     (r"policy rate|interest rate|monetary policy", "macro_key"),
     (r"(petrol|petroleum|diesel|fuel|hsd)\b.*\bprices?|prices? of (petrol|petroleum|diesel|fuel)", "macro_key"),
     (r"\bbudget\b", "macro_key"),

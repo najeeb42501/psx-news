@@ -7,6 +7,7 @@ roll everything back).
 """
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 import psycopg
@@ -75,11 +76,12 @@ class PostgresRepository:
         row = self.conn.execute("select * from sources where id = %s", (source_id,)).fetchone()
         return SourceRecord(**row) if row else None
 
-    def record_source_run(self, source_id: str, error: str | None) -> None:
+    def record_source_run(self, source_id: str, error: str | None, captured_until: datetime | None = None) -> None:
         with self.conn.transaction():
             self.conn.execute(
-                "update sources set last_run_at = now(), last_error = %s where id = %s",
-                (error, source_id),
+                "update sources set last_run_at = now(), last_error = %s, "
+                "last_success_at = coalesce(%s, last_success_at) where id = %s",
+                (error, captured_until, source_id),
             )
 
     def known_hashes(self, hashes: list[str]) -> set[str]:
@@ -190,6 +192,27 @@ class PostgresRepository:
                 (categories,),
             )
         return cur.rowcount
+
+    def recent_news_items(self, since: datetime) -> list[tuple[int, str, str, str]]:
+        rows = self.conn.execute(
+            """
+            select i.id, d.source_id, d.title, d.url from items i join documents d on d.id = i.document_id
+            where d.source_id not in ('psx_companies', 'psx_notices', 'secp_notices')
+              and i.review_status in ('auto', 'approved')
+              and coalesce(d.published_at, d.first_seen_at) >= %s
+            order by i.id
+            """,
+            (since,),
+        ).fetchall()
+        return [(r["id"], r["source_id"], r["title"], r["url"]) for r in rows]
+
+    def add_also_reported(self, item_id: int, entry: dict) -> None:
+        with self.conn.transaction():
+            self.conn.execute(
+                "update items set facts = jsonb_set(facts, '{also_reported}', "
+                "coalesce(facts->'also_reported', '[]'::jsonb) || %s) where id = %s",
+                (Jsonb([entry]), item_id),
+            )
 
     def get_company(self, symbol: str) -> Company | None:
         row = self.conn.execute(

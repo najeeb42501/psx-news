@@ -43,7 +43,7 @@ class PdfOcrParser:
         max_pages: int = 15,
         max_ocr_pages: int = 6,
         max_chars: int = 40_000,
-        min_page_chars: int = 40,
+        min_page_chars: int = 200,
         dpi: int = 300,
     ) -> None:
         self.tesseract_cmd = find_tesseract(tesseract_cmd)
@@ -74,7 +74,7 @@ class PdfOcrParser:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
             for page in pdf.pages[: self.max_pages]:
                 text = (page.extract_text() or "").strip()
-                if len(text) < self.min_page_chars and ocr_done < self.max_ocr_pages:
+                if self.needs_ocr(len(text), _image_share(page)) and ocr_done < self.max_ocr_pages:
                     image = page.to_image(resolution=self.dpi).original
                     text = self._ocr_image(image)
                     used_ocr = True
@@ -83,6 +83,11 @@ class PdfOcrParser:
                 if sum(len(p) for p in parts) >= self.max_chars:
                     break
         return ParsedDoc(text="\n\n".join(parts)[: self.max_chars], used_ocr=used_ocr)
+
+    def needs_ocr(self, text_chars: int, image_share: float) -> bool:
+        """OCR a page with (almost) no text, or one that is mostly a picture with only a header
+        and footer as text: PSX notices often embed the actual table as an image."""
+        return text_chars < self.min_page_chars or (image_share >= 0.4 and text_chars < 1000)
 
     def _ocr_image(self, image: Image.Image) -> str:
         if not self.tesseract_cmd:
@@ -103,3 +108,10 @@ class PdfOcrParser:
         except pytesseract.TesseractError:
             return False  # too little text to tell; English is the safe default
         return "Script: Arabic" in osd
+
+
+def _image_share(page) -> float:
+    """Share of the page area covered by embedded images (0 to 1)."""
+    area = float(page.width * page.height) or 1.0
+    covered = sum(abs((im["x1"] - im["x0"]) * (im["bottom"] - im["top"])) for im in page.images)
+    return min(1.0, covered / area)

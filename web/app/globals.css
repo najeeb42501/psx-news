@@ -52,13 +52,20 @@ html[data-lang="ur"] .ui-en {
   display: none !important;
 }
 
-/* Urdu text: right-to-left, Nastaliq needs generous line height. */
+/* Urdu text: always right-to-left (even when it starts with an English name), isolated from the
+   surrounding layout. Nastaliq needs generous line height. */
 .ur {
   font-family: var(--font-urdu);
   direction: rtl;
   text-align: right;
   line-height: 2.1;
-  unicode-bidi: plaintext;
+  unicode-bidi: isolate;
+}
+/* English names, codes and numbers inside Urdu (components/urdu-text.tsx): sans-serif, sized to sit
+   with the Nastaliq letters. */
+.ur .ltr-run {
+  font-family: var(--font-sans);
+  font-size: 0.86em;
 }
 .ur-tight {
   line-height: 1.9;

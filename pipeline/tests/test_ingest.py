@@ -1,7 +1,7 @@
 """Core ingest logic with fake adapters: idempotency, symbols, failures, fallbacks."""
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from pipeline.core.ingest import content_hash, ingest_source
 from pipeline.core.models import Company, ParsedDoc, RawItem, SourceRecord
@@ -109,3 +109,40 @@ def test_source_error_is_recorded() -> None:
     result = ingest_source(FakeSource([], error=RuntimeError("PSX down")), repo, FakeParser(), SINCE)
     assert result.source_error == "RuntimeError: PSX down"
     assert repo.sources["src"].last_error == "RuntimeError: PSX down"
+
+
+def test_capture_mark_moves_only_when_everything_was_stored() -> None:
+    """A failed download must be retried by the next run, so the mark stops just before it."""
+    repo = _repo()
+    now = datetime.now(UTC)
+    t1, t2 = now - timedelta(hours=3), now - timedelta(hours=2)
+    items = [_raw("C:1", published_at=t1), _raw("C:2", published_at=t2)]
+    broken = {"https://x/C:2.pdf", "https://x/C:2.gif"}
+    ingest_source(FakeSource(items, broken=broken), repo, FakeParser(), SINCE)
+    mark = repo.sources["src"].last_success_at
+    assert mark is not None and mark < t2  # next run starts before the failed item
+    ingest_source(FakeSource(items), repo, FakeParser(), SINCE)
+    assert repo.sources["src"].last_success_at > t2 and len(repo.documents) == 2
+
+
+def test_failed_listing_and_backfill_do_not_move_the_mark() -> None:
+    repo = _repo()
+    ingest_source(FakeSource([_raw("C:1")]), repo, FakeParser(), SINCE)
+    mark = repo.sources["src"].last_success_at
+    ingest_source(FakeSource([], error=ConnectionError("PSX down")), repo, FakeParser(), SINCE)
+    assert repo.sources["src"].last_success_at == mark and repo.sources["src"].last_error
+    ingest_source(FakeSource([_raw("C:7")]), repo, FakeParser(), SINCE, until=datetime(2026, 9, 29, tzinfo=UTC))
+    assert repo.sources["src"].last_success_at == mark  # a one-day backfill is not "caught up"
+
+
+def test_window_starts_at_mark_and_rechecks_yesterday_once_a_day() -> None:
+    from pipeline.jobs.ingest import PKT, window_start
+    now = datetime(2026, 10, 5, 14, 0, tzinfo=PKT)
+    same_day = datetime(2026, 10, 5, 13, 0, tzinfo=PKT)
+    assert window_start(same_day, None, now) == datetime(2026, 10, 5, 12, 0, tzinfo=PKT)  # mark - 1 h overlap
+    last_evening = datetime(2026, 10, 4, 19, 0, tzinfo=PKT)  # first run today: re-list all of yesterday
+    assert window_start(last_evening, None, now) == datetime(2026, 10, 4, 0, 0, tzinfo=PKT)
+    failed_run = datetime(2026, 10, 5, 13, 50, tzinfo=PKT)  # last_run moved, success mark did not
+    assert window_start(same_day, failed_run, now) == datetime(2026, 10, 5, 12, 0, tzinfo=PKT)
+    long_ago = datetime(2026, 9, 1, tzinfo=PKT)
+    assert window_start(long_ago, None, now) == now - timedelta(days=7)

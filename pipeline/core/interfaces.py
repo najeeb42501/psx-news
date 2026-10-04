@@ -70,7 +70,7 @@ class Repository(Protocol):
 
     def get_source(self, source_id: str) -> SourceRecord | None: ...
 
-    def record_source_run(self, source_id: str, error: str | None) -> None: ...
+    def record_source_run(self, source_id: str, error: str | None, captured_until: datetime | None = None) -> None: ...
 
     def known_hashes(self, hashes: list[str]) -> set[str]: ...  # which content_hashes are stored
 
@@ -97,6 +97,10 @@ class Repository(Protocol):
     def set_document_status(self, doc_id: int, status: str) -> None: ...
 
     def reset_for_reprocessing(self, categories: list[str]) -> int: ...  # docs of these item categories -> 'new'
+
+    def recent_news_items(self, since: datetime) -> list[tuple[int, str, str, str]]: ...  # (item_id, source_id, title, url) published
+
+    def add_also_reported(self, item_id: int, entry: dict) -> None: ...  # append to facts.also_reported
 
     def get_company(self, symbol: str) -> Company | None: ...
 

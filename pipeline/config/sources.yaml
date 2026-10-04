@@ -2,29 +2,35 @@
 # also needs one adapter in pipeline/adapters/sources/ registered in container.py.
 #
 # psx_announcements `type`: C = company announcements, E = PSX notices, B = SECP notices.
+# `name`: how summaries attribute a news story ("Dawn reports…").
 # rss `keywords`: keep only entries whose title/description mention one of these.
 
 sources:
   - id: psx_companies
+    name: PSX
     kind: psx_announcements
     url: https://dps.psx.com.pk/announcements/companies
     type: C
 
   - id: psx_notices
+    name: PSX
     kind: psx_announcements
     url: https://dps.psx.com.pk/announcements/psx
     type: E
 
   - id: secp_notices
+    name: SECP
     kind: psx_announcements
     url: https://dps.psx.com.pk/announcements/secp
     type: B
 
   - id: dawn_business
+    name: Dawn
     kind: rss
     url: https://www.dawn.com/feeds/business
 
   - id: brecorder_latest
+    name: Business Recorder
     kind: rss
     url: https://www.brecorder.com/feeds/latest-news
     keywords: [PSX, KSE, KSE-100, stock, stocks, shares, bourse, dividend, IPO, SECP,
@@ -33,9 +39,11 @@ sources:
                current account, circular debt, T-bill, PIB, Eurobond, sukuk]
 
   - id: tribune_business
+    name: Express Tribune
     kind: rss
     url: https://tribune.com.pk/feed/business
 
   - id: propakistani_business
+    name: ProPakistani
     kind: rss
     url: https://propakistani.pk/category/business/feed/

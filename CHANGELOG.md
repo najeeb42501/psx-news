@@ -138,3 +138,51 @@ From the first 3 items held for review:
 
 Admin:
 - **Source failure alert.** When a source fails 3 runs in a row, a red banner shows on every admin page, with the last error. It clears after the source's next successful run.
+
+
+## v1.1 Phase 1 – Audit (2026-10-04)
+
+- Audit of every area in the v1.1 checklist against the real code, data and a local production build: 1 OK, 12 needs work, 4 missing. Report with evidence, screenshots and a ranked fix list (shared as a private page). No code changed.
+
+## v1.1 Phase 2 – Correctness and reliability (2026-10-05, branch `v1.1-phase2`)
+
+Completeness:
+- **No more skipped items after a failed run.** Runs used to start from the last run, even a failed one. They now start from `sources.last_success_at` ("complete up to"), which only moves when everything was stored; a failed download moves it back so the item is retried (up to 2 days). Migration 008.
+- **Late listings:** the first run of each Pakistan day re-lists all of yesterday.
+- **Layout changes fail loudly:** if the PSX portal lists announcements but none can be read, the source fails with `PsxLayoutError` (before: "0 new", silently).
+- **Scanned tables:** pages that are mostly a picture with only a header and footer as text are now OCR'd (before: only pages with under 40 characters).
+- Backfilling the 4 missed days (28 Sep – 1 Oct) was postponed by decision.
+
+Accuracy and style:
+- **REDCO corrected:** revenue Rs 1.8 billion, profit Rs 5.6 million (the earlier manual text had 1,795.9 and 5.5).
+- **Admin edits are number-checked:** every number must be in the original filing, or the editor ticks "I checked these numbers". The page then says which numbers changed. Urdu style rules apply to edits too.
+- **Long filings:** the model gets the cover letter plus the passages around the key rows instead of the first 8,000 characters (10 of 17 results filings were longer).
+- **PSX titles as a source:** facts may be quoted from the portal title. LSEFSL's rights issue now shows 58.89% at Rs 1 per share.
+- **Results without profit or EPS go to review** (SUTM).
+- **Modaraba "Annual Review Meeting"** is no longer called an AGM.
+- **News attribution:** prompt `summarise_v6` and a new check: forecasts and claims in news summaries must say whose they are, in both languages ("ProPakistani reports…", "…: Dawn"). Off-topic stories keep the outlet's name in the headline.
+- **Urdu checks:** "نل" (a water tap) for nil, codes like IMF in Urdu letters, and masculine بک کلوژر are now caught; the prompt asks for کوئی … نہیں and ہوگی. Reviewer's choice: بک کلوژر is feminine.
+- **Foreign-market news** ("US stocks") is kept out of the feed; classifier prompt `classify_v2`.
+- **Duplicate news:** the same story from a second outlet within 36 hours is merged (no AI call) and shown as "Also reported by". The Karachi Port story pair was merged.
+- 58 published summaries were rewritten from their stored facts with `summarise_v6` (new `resummarise` job; no re-extraction).
+
+Website:
+- **Urdu reading order fixed:** Urdu text used `unicode-bidi: plaintext`, so a summary starting with "DIIL" was laid out left-to-right. Urdu blocks are now always right-to-left, with English names and numbers isolated (`components/urdu-text.tsx`).
+- Urdu mode shows figures in Urdu ("34.3 ملین روپے") in badges and fact tables.
+
+Admin and security:
+- **Admin sign-in by emailed magic link** (Supabase Auth) for emails in `admin_users`, with a signed session cookie (`ADMIN_SESSION_SECRET`). Emergency password sign-in only while `ADMIN_ALLOW_PASSWORD=1`.
+- **Sign-in throttle:** 5 failures from one address in 15 minutes locks it out for the rest of the window (`admin_login_attempts`).
+- **Security headers** (CSP, frame protection, nosniff, referrer policy, HSTS in production), `X-Powered-By` removed, **rate limit** of 60 requests/minute per address on `/api/*`.
+- **Bulk approve** in the review queue.
+- **Health page:** delays over 7 days (published → stored → on site), "complete up to" per source, time per source and AI time per run. Migration 009 (`admin_health()` v2).
+- **Nightly encrypted backup** (`.github/workflows/backup.yml`), kept 14 days, with a restore test on every run.
+
+Acceptance (re-run of the Phase 1 measurements):
+- Duplicates: 0 repeated documents or items; 1 cross-outlet story merged.
+- Numbers: all 183 published items checked by script against their source text: 0 numbers not found. New 50-item sample (none from the first sample) read in English and Urdu: 0 wrong numbers.
+- Style and compliance checks on all published items: 0 problems.
+- Capture: 100% on fetched days. The 4 unfetched days stay missing until a backfill is approved.
+- Tests: 178 Python tests (23 new), web lint and types clean, 16 browser checks of sign-in, edits, throttle, Urdu, headers and rate limit.
+
+Rollback: `git switch main` (code). Migrations 008 and 009 only add a column, two tables and a new version of `admin_health()`, so main keeps working with them in place. Summaries rewritten in this phase are new rows; older versions are kept in `summaries`.

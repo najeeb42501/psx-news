@@ -37,6 +37,52 @@ class Extraction:
         return 1.0 if total == 0 else round(self.kept / total, 2)
 
 
+HEAD_CHARS = {"llm": 2500, "dates": 1500}  # the cover letter: title, dividend, AGM and closure dates
+# Rows a reader looks for in a long filing, most important first. Windows around these are sent
+# to the model in place of the middle of the document (notes, auditor's report, balance sheet).
+KEY_ROWS = [
+    re.compile(p, re.IGNORECASE) for p in (
+        r"profit(\s*/?\s*\(?\s*loss\)?)?\s*(after\s*tax\w*|for\s*the\s*(year|period))|loss\s*after\s*tax|net\s*profit",
+        r"(earnings?|loss)\s*/?\s*\(?\s*(loss|earnings?)?\)?\s*per\s*share",
+        r"\b(net\s*)?(sales|revenue|turnover)\b",
+        r"dividend|bonus|right\s*shares?",
+        r"book\s*closure|share\s*transfer\s*books|annual\s*general\s*meeting|will\s*be\s*held",
+    )
+]
+WINDOW = (600, 900)  # characters before / after a key row
+
+
+def select_text(text: str, handling: str) -> str:
+    """What the model reads. Short filings are sent whole. For long ones (scanned annual
+    accounts run to 40,000 characters), send the cover letter plus the passages around the
+    key rows, so a results table on page 6 is not cut off. Every passage is verbatim, so
+    quotes are still checked against the full text."""
+    limit = TEXT_LIMIT.get(handling, 8000)
+    if len(text) <= limit:
+        return text
+    head = HEAD_CHARS.get(handling, 2500)
+    spans: list[tuple[int, int, int]] = []  # (priority, start, end)
+    for rank, pattern in enumerate(KEY_ROWS):
+        for m in pattern.finditer(text, head):
+            spans.append((rank, max(head, m.start() - WINDOW[0]), min(len(text), m.end() + WINDOW[1])))
+    chosen: list[tuple[int, int]] = []
+    budget = limit - head
+    for _, start, end in sorted(spans):
+        if any(start < e and end > s for s, e in chosen):  # overlaps a passage already chosen
+            continue
+        if end - start <= budget:
+            chosen.append((start, end))
+            budget -= end - start
+    # Whatever budget is left extends the opening pages; overlapping passages are joined.
+    merged: list[list[int]] = []
+    for start, end in sorted([(0, head + budget), *chosen]):
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return "\n[...]\n".join(text[s:e] for s, e in merged)
+
+
 def build_extract_prompt(
     template: str, *, title: str, company: str, category: str, text: str, handling: str, feedback: str = ""
 ) -> str:
@@ -46,7 +92,7 @@ def build_extract_prompt(
         .replace("{{category}}", category)
         .replace("{{focus}}", DATES_FOCUS if handling == "dates" else "")
         .replace("{{feedback}}", f"\nYour previous answer had problems; fix them:\n{feedback}\n" if feedback else "")
-        .replace("{{text}}", text[: TEXT_LIMIT.get(handling, 8000)])
+        .replace("{{text}}", select_text(text, handling))
     )
 
 

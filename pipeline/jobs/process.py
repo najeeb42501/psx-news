@@ -4,6 +4,7 @@ Run with:
   uv run python -m pipeline.jobs.process                 # all new documents (AI work capped per run)
   uv run python -m pipeline.jobs.process --limit 30 --max-ai 30
   uv run python -m pipeline.jobs.process --reprocess results dividend   # e.g. after a prompt change
+  uv run python -m pipeline.jobs.process --resummarise 178 181          # rewrite from stored facts only
 """
 from __future__ import annotations
 
@@ -11,18 +12,23 @@ import argparse
 import sys
 
 from pipeline.container import Container, build_container
-from pipeline.core.process import ProcessStats, process_documents
+from pipeline.core.process import ProcessStats, process_documents, resummarise_items
 
 
-def run(c: Container, max_ai: int = 25, limit: int = 500, reprocess: list[str] | None = None) -> ProcessStats:
-    if reprocess:
-        n = c.repo.reset_for_reprocessing(reprocess)
-        print(f"process: {n} documents marked for reprocessing")
-    docs = c.repo.documents_to_process(limit)
-    stats = process_documents(docs, c.repo, c.llm, c.process_config(max_ai), extract_llm=c.extract_llm)
+def run(c: Container, max_ai: int = 25, limit: int = 500, reprocess: list[str] | None = None,
+        resummarise: list[int] | None = None) -> ProcessStats:
+    if resummarise:
+        stats = resummarise_items(resummarise, c.repo, c.llm, c.process_config(max_ai))
+    else:
+        if reprocess:
+            n = c.repo.reset_for_reprocessing(reprocess)
+            print(f"process: {n} documents marked for reprocessing")
+        docs = c.repo.documents_to_process(limit)
+        stats = process_documents(docs, c.repo, c.llm, c.process_config(max_ai), extract_llm=c.extract_llm)
     print(
         f"process: processed={stats.processed} needs_review={stats.needs_review} "
-        f"failed={stats.failed} deferred={stats.deferred}"
+        f"failed={stats.failed} deferred={stats.deferred} duplicates={stats.duplicates}  "
+        + "  ".join(f"{k}={v:.1f}s" for k, v in stats.seconds.items())
     )
     for name, n in stats.by_category.most_common():
         print(f"    {name:28} {n}")
@@ -37,8 +43,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--max-ai", type=int, default=25, help="max documents needing AI per run (free-tier budget)")
     ap.add_argument("--reprocess", nargs="+", metavar="CATEGORY",
                     help="mark documents of these item categories as new again (e.g. after a prompt change)")
+    ap.add_argument("--resummarise", nargs="+", type=int, metavar="ITEM_ID",
+                    help="rewrite these items' summaries from their stored facts (no new extraction)")
     args = ap.parse_args(argv)
-    run(build_container(), args.max_ai, args.limit, args.reprocess)
+    run(build_container(), args.max_ai, args.limit, args.reprocess, args.resummarise)
     return 0
 
 

@@ -11,6 +11,12 @@ function duration(r: JobRun): string {
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
+function minutes(m: number): string {
+  if (m < 60) return `${m} min`;
+  if (m < 48 * 60) return `${Math.round(m / 6) / 10} h`;
+  return `${Math.round(m / 144) / 10} days`;
+}
+
 const STATUS = {
   running: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
   success: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
@@ -119,7 +125,12 @@ export default async function JobsPage() {
               {h.sources.map((s) => (
                 <tr key={s.id} className="border-t border-border first:border-0 align-top">
                   <td className="py-1.5">{sourceLabel(s.id)}</td>
-                  <td className="py-1.5 text-end text-xs text-muted">{s.last_run_at ? formatDateTime(s.last_run_at) : "never"}</td>
+                  <td className="py-1.5 text-end text-xs text-muted">
+                    {s.last_run_at ? formatDateTime(s.last_run_at) : "never"}
+                    {s.last_success_at && s.last_success_at !== s.last_run_at && (
+                      <span className="block">complete up to {formatDateTime(s.last_success_at)}</span>
+                    )}
+                  </td>
                   <td className="py-1.5 ps-2 text-end">
                     {s.last_error ? (
                       <span title={s.last_error} className="text-xs text-rose-600">error</span>
@@ -168,6 +179,42 @@ export default async function JobsPage() {
         </div>
       </section>
 
+      <section className="space-y-2 rounded-2xl border border-border bg-card p-4">
+        <h2 className="font-bold">Delays, last 7 days</h2>
+        {h.delays.length === 0 ? (
+          <p className="text-sm text-muted">No items from the last 7 days yet.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted">
+              <tr>
+                <th className="text-start font-normal">Source</th>
+                <th className="text-end font-normal">Items</th>
+                <th className="text-end font-normal">Published → stored (median / slowest 10%)</th>
+                <th className="text-end font-normal">Stored → on site</th>
+              </tr>
+            </thead>
+            <tbody>
+              {h.delays.map((d) => (
+                <tr key={d.source_id} className="border-t border-border">
+                  <td className="py-1">{sourceLabel(d.source_id)}</td>
+                  <td className="py-1 text-end tabular-nums">{d.n}</td>
+                  <td className={`py-1 text-end tabular-nums ${d.stored_median > 15 ? "text-amber-700 dark:text-amber-400" : "text-emerald-600"}`}>
+                    {minutes(d.stored_median)} / {minutes(d.stored_p90)}
+                  </td>
+                  <td className="py-1 text-end tabular-nums">
+                    {minutes(d.summarised_median)} / {minutes(d.summarised_p90)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="text-xs text-muted">
+          Target in market hours: published → on site within 15 minutes. While runs are started by hand, the first column
+          mostly shows how long until someone pressed Run.
+        </p>
+      </section>
+
       <section className="space-y-2">
         <h2 className="font-bold">Recent runs</h2>
         {runs.length === 0 && <p className="text-sm text-muted">No runs yet.</p>}
@@ -189,7 +236,11 @@ export default async function JobsPage() {
                 <span className="ms-auto text-xs">
                   {[
                     ing.length > 0 ? `new docs ${fetchedNew}${failed ? `, failed ${failed}` : ""}` : "",
-                    p ? `summarised ${p.processed}, review ${p.needs_review}, waiting ${p.deferred}` : "",
+                    p
+                      ? `summarised ${p.processed}, review ${p.needs_review}, waiting ${p.deferred}` +
+                        (p.duplicates ? `, duplicates ${p.duplicates}` : "") +
+                        (p.seconds ? ` (AI ${Math.round(p.seconds.ai ?? 0)}s)` : "")
+                      : "",
                   ]
                     .filter(Boolean)
                     .join(" · ")}
@@ -204,6 +255,7 @@ export default async function JobsPage() {
                       <th className="text-end font-normal">New</th>
                       <th className="text-end font-normal">Already had</th>
                       <th className="text-end font-normal">Failed</th>
+                      <th className="text-end font-normal">Time</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -214,6 +266,7 @@ export default async function JobsPage() {
                         <td className="py-0.5 text-end">{s.new}</td>
                         <td className="py-0.5 text-end">{s.already_known}</td>
                         <td className={`py-0.5 text-end ${s.failed ? "text-rose-600" : ""}`}>{s.failed}</td>
+                        <td className="py-0.5 text-end text-muted">{s.seconds != null ? `${Math.round(s.seconds)}s` : ""}</td>
                       </tr>
                     ))}
                   </tbody>

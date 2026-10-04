@@ -4,6 +4,7 @@ Only one run at a time. The admin page starts this; it also works from the comma
   uv run python -m pipeline.jobs.run --job pipeline                 # fetch new items, then summarise them
   uv run python -m pipeline.jobs.run --job ingest --date 2026-10-02 # fetch one Pakistan-time day
   uv run python -m pipeline.jobs.run --job process --max-ai 40
+  uv run python -m pipeline.jobs.run --job resummarise --items 178 181   # rewrite from stored facts
 """
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ from dataclasses import asdict
 from pipeline.container import build_container
 from pipeline.jobs import ingest, process
 
-JOBS = ("ingest", "process", "pipeline")
+JOBS = ("ingest", "process", "pipeline", "resummarise")
 
 
 class _Tee(io.TextIOBase):
@@ -42,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--date", help="ingest one Pakistan-time day, YYYY-MM-DD")
     ap.add_argument("--source", help="only this source id")
     ap.add_argument("--max-ai", type=int, default=25)
+    ap.add_argument("--items", nargs="+", type=int, help="item ids, for --job resummarise")
     ap.add_argument("--triggered-by", default="cli", choices=("cli", "admin", "schedule"))
     args = ap.parse_args(argv)
 
@@ -51,7 +53,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"run: job run #{busy} is still in progress; not starting another one")
         return 2
 
-    params = {k: v for k, v in {"date": args.date, "source": args.source, "max_ai": args.max_ai}.items() if v}
+    params = {k: v for k, v in {"date": args.date, "source": args.source, "max_ai": args.max_ai,
+                                "items": args.items}.items() if v}
     run_id = c.repo.start_job_run(args.job, params, args.triggered_by)
     log = io.StringIO()
     summary: dict = {}
@@ -64,11 +67,12 @@ def main(argv: list[str] | None = None) -> int:
                 summary["ingest"] = [asdict(r) for r in results]
                 if results and all(r.source_error for r in results):
                     status = "failed"
-            if args.job in ("process", "pipeline"):
-                stats = process.run(c, args.max_ai)
+            if args.job in ("process", "pipeline", "resummarise"):
+                stats = process.run(c, args.max_ai, resummarise=args.items if args.job == "resummarise" else None)
                 summary["process"] = {
                     "processed": stats.processed, "needs_review": stats.needs_review, "failed": stats.failed,
-                    "deferred": stats.deferred, "by_category": dict(stats.by_category), "notes": stats.notes[:20],
+                    "deferred": stats.deferred, "duplicates": stats.duplicates, "seconds": stats.seconds,
+                    "by_category": dict(stats.by_category), "notes": stats.notes[:20],
                 }
     except Exception:  # noqa: BLE001 - record any crash in the run log
         status = "failed"

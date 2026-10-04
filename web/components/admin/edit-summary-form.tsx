@@ -22,12 +22,22 @@ export function EditSummaryForm({ id, en, ur }: { id: number; en: Text; ur: Text
         className={`${field} ur ur-tight`}
       />
       <textarea name="body_ur" defaultValue={ur.body} rows={3} dir="rtl" aria-label="Urdu summary" className={`${field} ur`} />
-      <div className="flex items-center gap-2">
+      {state.needsConfirm && (
+        <label className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
+          <input type="checkbox" name="confirm_numbers" className="size-4" />
+          I checked these numbers against the original filing
+        </label>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
         <button disabled={pending} className="rounded-md bg-brand px-3 py-1 text-sm font-semibold text-white">
           {pending ? "Saving…" : "Save & publish"}
         </button>
-        {state.error && <span className="text-xs text-red-600">{state.error}</span>}
-        {state.ok && <span className="text-xs text-green-700">{state.ok}</span>}
+        {state.error && (
+          <span role="alert" className="text-xs text-red-600">
+            {state.error}
+          </span>
+        )}
+        {state.ok && <span className="text-xs text-green-700 dark:text-green-400">{state.ok}</span>}
       </div>
     </form>
   );

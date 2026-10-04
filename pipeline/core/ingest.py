@@ -3,16 +3,20 @@
 Idempotent: every item is keyed by a hash of its stable source id, so re-running
 never stores it twice, and items already stored are never downloaded again.
 An item whose download or text extraction fails is not stored, so the next run
-retries it.
+retries it: the source's "captured until" mark stops just before the oldest failed
+item (at most RETRY_WINDOW back), and the next run starts from that mark.
 """
 from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from pipeline.core.interfaces import DocumentParser, Repository, Source
 from pipeline.core.models import Document, ParsedDoc, RawItem
+
+
+RETRY_WINDOW = timedelta(days=2)  # a download that keeps failing is retried for this long
 
 
 def content_hash(raw: RawItem) -> str:
@@ -28,6 +32,7 @@ class IngestResult:
     failed: int = 0
     errors: list[str] = field(default_factory=list)
     listed: dict | None = None  # the source's own count for the dates fetched, if it reports one
+    seconds: float = 0.0  # how long this source took (listing + downloads + text extraction)
 
     @property
     def source_error(self) -> str | None:
@@ -64,13 +69,18 @@ def ingest_source(
     since: datetime,
     until: datetime | None = None,
 ) -> IngestResult:
+    """until=None is a normal run: on success it moves the source's "captured until" mark.
+    A run for a fixed window (a backfill of one day) never moves it."""
     result = IngestResult(source_id=source.id)
+    started = datetime.now(UTC)
     try:
         raws = source.fetch_new(since, until)
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"{type(e).__name__}: {e}")
         repo.record_source_run(source.id, result.errors[0])
+        result.seconds = (datetime.now(UTC) - started).total_seconds()
         return result
+    failed_times: list[datetime] = []
 
     result.listed = getattr(source, "last_listed", None)  # optional: PSX portal reports its total
     by_hash: dict[str, RawItem] = {}
@@ -96,6 +106,7 @@ def ingest_source(
         except Exception as e:  # noqa: BLE001
             result.failed += 1
             result.errors.append(f"{raw.external_id}: {type(e).__name__}: {e}")
+            failed_times.append(raw.published_at or started)
             continue
         saved = repo.save_document(
             Document(
@@ -112,5 +123,11 @@ def ingest_source(
         if saved is not None:
             result.new += 1
 
-    repo.record_source_run(source.id, "; ".join(result.errors[:3]) or None)
+    captured_until = None
+    if until is None:
+        captured_until = started
+        if failed_times:  # start the next run just before the oldest failure, so it is retried
+            captured_until = max(min(failed_times) - timedelta(minutes=1), started - RETRY_WINDOW)
+    repo.record_source_run(source.id, "; ".join(result.errors[:3]) or None, captured_until)
+    result.seconds = (datetime.now(UTC) - started).total_seconds()
     return result

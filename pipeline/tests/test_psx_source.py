@@ -107,6 +107,30 @@ def test_source_filters_by_time_window() -> None:
         datetime(2026, 10, 2, 16, 0, tzinfo=PKT) <= i.published_at <= datetime(2026, 10, 2, 16, 20, tzinfo=PKT)
         for i in items
     )
-    assert src.last_listed == {"date_from": "2026-10-02", "date_to": "2026-10-02", "listed": 125}
+    assert src.last_listed == {"date_from": "2026-10-02", "date_to": "2026-10-02", "listed": 125, "read": 100}  # fixture holds page 1
     fetched = src.fetch_content(items[0])
     assert fetched.content == b"%PDF-fake" and fetched.content_type == "application/pdf"
+
+
+class _FakeHttp:
+    """Token page + one announcements response."""
+
+    def __init__(self, table_html: str) -> None:
+        self.table_html = table_html
+
+    def get(self, url, **kw):
+        return type("R", (), {"text": 'window.__ps = {"_k":"tok"}'})()
+
+    def post(self, url, **kw):
+        return type("R", (), {"text": self.table_html})()
+
+
+def test_layout_change_fails_loudly() -> None:
+    """The portal lists rows (data-total) but none can be read: raise, never report 'nothing new'."""
+    from pipeline.adapters.sources.psx import PsxClient, PsxLayoutError
+    changed = COMPANIES.replace("<td", "<div").replace("</td>", "</div>")  # a redesign we can't read
+    client = PsxClient(_FakeHttp(changed))  # type: ignore[arg-type]
+    with pytest.raises(PsxLayoutError, match="lists 125 announcements but none could be read"):
+        client.announcements("C", date(2026, 10, 2), date(2026, 10, 2), "psx_companies")
+    ok = PsxClient(_FakeHttp(COMPANIES))  # type: ignore[arg-type]
+    assert len(ok.announcements("C", date(2026, 10, 2), date(2026, 10, 2), "psx_companies")) == 200  # 2 pages (fake repeats page 1)

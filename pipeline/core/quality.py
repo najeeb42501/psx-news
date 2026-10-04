@@ -81,7 +81,8 @@ def allowed_numbers(facts: Facts, extra_sources: list[str]) -> set[float]:
     return allowed
 
 
-def check_summary(lang: str, headline: str, body: str, allowed: set[float]) -> list[str]:
+def check_summary(lang: str, headline: str, body: str, allowed: set[float], news_source: str | None = None) -> list[str]:
+    """news_source: the outlet's name for a news story; its forecasts and claims must be attributed."""
     problems: list[str] = []
     text = f"{headline}\n{body}"
     if not headline.strip() or not body.strip():
@@ -113,7 +114,45 @@ def check_summary(lang: str, headline: str, body: str, allowed: set[float]) -> l
             problems.append(f"ur: word mixes English and Urdu letters: {mixed.group(0)!r}")
         if re.search(r"\bRs\.?(?=[\s\d])", text):
             problems.append("ur: write روپے instead of 'Rs' in Urdu")
+        if _UR_NIL.search(text):
+            problems.append("ur: 'نل' means a water tap; write e.g. 'کوئی کیش ڈیویڈنڈ … تجویز نہیں کیے'")
+        code = _UR_CODES.search(text)
+        if code:
+            problems.append(f"ur: write short codes in English letters, not {code.group(0)!r}")
+        if _UR_CLOSURE_MASC.search(text):
+            problems.append("ur: بک کلوژر is feminine: write 'ہوگی' / 'رہے گی', not 'ہوگا' / 'رہے گا'")
+    if news_source:
+        for sentence in _sentences(text):
+            pattern, attrib = (_FORECAST_UR, _ATTRIB_UR) if lang == "ur" else (_FORECAST_EN, _ATTRIB_EN)
+            m = pattern.search(sentence)
+            if m and not attrib.search(sentence) and news_source.lower() not in sentence.lower():
+                problems.append(f"{lang}: forecast or claim {m.group(0)!r} must say whose it is "
+                                f"(e.g. '{news_source} reports…') in: “{sentence.strip()[:100]}”")
     return problems
+
+
+def _sentences(text: str) -> list[str]:
+    return [s for s in re.split(r"(?<=[.!?۔])\s+|\n", text) if s.strip()]
+
+
+# Word edges for Urdu: letters only, so "۔" or "،" right after a word still ends it.
+_UR_WORD = "A-Za-z0-9ء-يٱ-ۓەۺ-ۿ"
+_UR_NIL = re.compile(rf"(?<![{_UR_WORD}])(نل|NIL|Nil)(?![{_UR_WORD}])")
+_UR_CODES = re.compile(r"آئی ایم ایف|ایف بی آر|ایس بی پی|ایس ای سی پی|پی ایس ایکس|ای پی ایس|اے جی ایم|ای او جی ایم|کے ایس ای")
+_UR_CLOSURE_MASC = re.compile(rf"بک کلوژر[^۔]*?(ہوگا|ہو گا|رہے گا|شروع ہوگا|کیا جائے گا)(?![{_UR_WORD}])")
+# A news summary may report forecasts and claims, but only as someone's words.
+_FORECAST_EN = re.compile(
+    r"\b(may|might|could|likely|unlikely|expected to|is set to|are set to|poised to|threaten\w*|forecast\w*"
+    r"|projected|predict\w*|will (rise|fall|increase|decrease|go up|go down|jump|drop|surge|decline))\b",
+    re.IGNORECASE,
+)
+_ATTRIB_EN = re.compile(
+    r"\b(said|says|say|stated|states|told|according to|reports?|reported|warned|warns|expects?|estimates?"
+    r"|projects?|believes?|believe|noted|claims?|claimed|announced|analysts?|officials?|sources?)\b",
+    re.IGNORECASE,
+)
+_FORECAST_UR = re.compile(r"امکان|توقع|متوقع|خدشہ|سکتی ہے|سکتی ہیں|سکتا ہے|سکتے ہیں|پیش گوئی")
+_ATTRIB_UR = re.compile(r"کے مطابق|نے کہا|کا کہنا|نے بتایا|رپورٹ|خیال ظاہر|کی جانب سے")
 
 
 # A single word containing both Latin and Arabic-script letters, e.g. "Shaفی".
@@ -126,10 +165,11 @@ _MIXED_SCRIPT = re.compile(rf"[A-Za-z]+[{_UR_LETTER}]+|[{_UR_LETTER}]+[A-Za-z]+"
 _NAME_WITH_DIGITS = re.compile(r"\b(?!Rs|PKR|USD|US)[A-Z][A-Za-z]{0,3}-?\d{1,3}\b")
 
 
-def gate(summaries: dict[str, tuple[str, str]], facts: Facts, extra_sources: list[str]) -> GateResult:
+def gate(summaries: dict[str, tuple[str, str]], facts: Facts, extra_sources: list[str],
+         news_source: str | None = None) -> GateResult:
     """summaries: {"en": (headline, body), "ur": (headline, body)}."""
     allowed = allowed_numbers(facts, extra_sources)
     result = GateResult()
     for lang, (headline, body) in summaries.items():
-        result.problems += check_summary(lang, headline, body, allowed)
+        result.problems += check_summary(lang, headline, body, allowed, news_source)
     return result

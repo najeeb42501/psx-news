@@ -48,10 +48,12 @@ class InMemoryRepository:
     def get_source(self, source_id: str) -> SourceRecord | None:
         return self.sources.get(source_id)
 
-    def record_source_run(self, source_id: str, error: str | None) -> None:
-        self.sources[source_id] = self.sources[source_id].model_copy(
-            update={"last_run_at": datetime.now(UTC), "last_error": error}
-        )
+    def record_source_run(self, source_id: str, error: str | None, captured_until: datetime | None = None) -> None:
+        old = self.sources[source_id]
+        self.sources[source_id] = old.model_copy(update={
+            "last_run_at": datetime.now(UTC), "last_error": error,
+            "last_success_at": captured_until or old.last_success_at,
+        })
 
     def known_hashes(self, hashes: list[str]) -> set[str]:
         stored = {d.content_hash for d in self.documents.values()}
@@ -129,6 +131,22 @@ class InMemoryRepository:
         for doc_id in ids:
             self.set_document_status(doc_id, "new")
         return len(ids)
+
+    def recent_news_items(self, since: datetime) -> list[tuple[int, str, str, str]]:
+        out = []
+        for item_id, item in sorted(self.items.items()):
+            doc = self.documents[item.document_id]
+            when = doc.published_at or doc.first_seen_at or datetime.now(UTC)
+            if (doc.source_id not in ("psx_companies", "psx_notices", "secp_notices")
+                    and item.review_status in ("auto", "approved") and when >= since):
+                out.append((item_id, doc.source_id, doc.title, doc.url))
+        return out
+
+    def add_also_reported(self, item_id: int, entry: dict) -> None:
+        item = self.items[item_id]
+        facts = dict(item.facts)
+        facts["also_reported"] = [*facts.get("also_reported", []), entry]
+        self.items[item_id] = item.model_copy(update={"facts": facts})
 
     def get_company(self, symbol: str) -> Company | None:
         return self.companies.get(symbol)

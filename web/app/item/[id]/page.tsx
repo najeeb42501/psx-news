@@ -11,6 +11,7 @@ import { DISCLAIMER_EN, DISCLAIMER_UR } from "@/lib/compliance";
 import { getItem, getRelated } from "@/lib/data";
 import { factRows, keyChips } from "@/lib/facts";
 import { formatDateTime } from "@/lib/format";
+import { UrduText } from "@/components/urdu-text";
 
 export const revalidate = 300;
 
@@ -35,6 +36,7 @@ export default async function ItemPage({ params }: PageProps<"/item/[id]">) {
   const item = await load((await params).id);
   if (!item) notFound();
   const rows = factRows(item.facts);
+  const alsoReported = (item.facts.also_reported as { source_id: string; url: string }[] | undefined) ?? [];
   const related = item.symbol ? await getRelated(item.symbol, item.id) : [];
   const url = `${SITE_URL}/item/${item.id}`;
 
@@ -70,7 +72,7 @@ export default async function ItemPage({ params }: PageProps<"/item/[id]">) {
           {item.headline_en && <h1 className="en-only text-2xl font-bold leading-tight">{item.headline_en}</h1>}
           {item.headline_ur && (
             <h1 className="ur-only ur text-2xl font-bold" lang="ur">
-              {item.headline_ur}
+              <UrduText text={item.headline_ur} />
             </h1>
           )}
           <Chips chips={keyChips(item.facts)} size="lg" />
@@ -80,7 +82,7 @@ export default async function ItemPage({ params }: PageProps<"/item/[id]">) {
           {item.body_en && <p className="en-only leading-relaxed">{item.body_en}</p>}
           {item.body_ur && (
             <p className="ur-only ur text-lg" lang="ur">
-              {item.body_ur}
+              <UrduText text={item.body_ur} />
             </p>
           )}
         </section>
@@ -99,7 +101,12 @@ export default async function ItemPage({ params }: PageProps<"/item/[id]">) {
                       <span className="ui-en">{r.en}</span>
                       <span className="ui-ur ur ur-tight">{r.ur || r.en}</span>
                     </th>
-                    <td className="py-2 text-end font-semibold tabular-nums">{r.value}</td>
+                    <td className="py-2 text-end font-semibold tabular-nums">
+                      <span className="ui-en">{r.value}</span>
+                      <span className="ui-ur ur ur-tight">
+                        <UrduText text={r.valueUr} />
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -133,6 +140,19 @@ export default async function ItemPage({ params }: PageProps<"/item/[id]">) {
             <Icon name="external" className="size-4" />
             <L en={isNews(item.source_id) ? `Read on ${sourceLabel(item.source_id)}` : "Open original filing"} ur="اصل دستاویز" />
           </a>
+          {alsoReported.length > 0 && (
+            <p className="w-full text-muted">
+              <L en="Also reported by" ur="یہ خبر یہاں بھی" />:{" "}
+              {alsoReported.map((a, i) => (
+                <span key={a.url}>
+                  {i > 0 && ", "}
+                  <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-brand underline">
+                    {sourceLabel(a.source_id)}
+                  </a>
+                </span>
+              ))}
+            </p>
+          )}
         </section>
 
         <ShareButtons

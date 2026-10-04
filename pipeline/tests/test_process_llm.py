@@ -261,10 +261,11 @@ def test_job_runner_records_run_and_blocks_overlap(monkeypatch) -> None:
     c = C()
     c.repo = repo
     monkeypatch.setattr(run_job, "build_container", lambda: c)
-    monkeypatch.setattr(run_job.process, "run", lambda c, max_ai: print("processed!") or _Stats())
+    monkeypatch.setattr(run_job.process, "run", lambda c, max_ai, **kw: print("processed!") or _Stats())
 
     class _Stats:
-        processed, needs_review, failed, deferred, notes = 3, 1, 0, 0, []
+        processed, needs_review, failed, deferred, duplicates, notes = 3, 1, 0, 0, 0, []
+        seconds = {"classify": 0.0, "no_ai": 0.0, "ai": 1.0}
         by_category = {"results": 3}
 
     assert run_job.main(["--job", "process", "--triggered-by", "admin"]) == 0
@@ -286,7 +287,7 @@ def test_news_without_checkable_facts_uses_news_template_and_publishes() -> None
     item = _item(repo)
     sums = {s.lang: s for s in repo.get_summaries(item.id)}
     assert item.review_status == "auto"
-    assert sums["en"].headline == "Gold loses important level in Pakistan"
+    assert sums["en"].headline == "dawn_business: Gold loses important level in Pakistan"  # outlet named (no display names in CFG)
     assert "company" not in sums["en"].body.lower() and "PSX" not in sums["ur"].body
 
 

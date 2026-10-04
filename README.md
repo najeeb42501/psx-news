@@ -75,7 +75,7 @@ uv run python -m pipeline.jobs.ingest --source psx_companies
 **How the PSX portal works** (details in `pipeline/adapters/sources/psx.py`):
 - Every page embeds a request token. Data requests (`POST /announcements`, `GET /symbols`) must send it back as `X-Req-Id`, so the scraper loads the page first, like a browser does.
 - At most 100 rows come back per request; a market day has about 125 company announcements.
-- If PSX changes this scheme, the source fails with `PsxBlockedError`.
+- If PSX changes this scheme, the source fails with `PsxBlockedError`. If the portal lists announcements but none can be read (a page redesign), it fails with `PsxLayoutError` instead of reporting "nothing new".
 
 **Politeness.** Every request identifies us (`ShareKhabarBot/0.1 (+mailto:…)`). Requests are spaced at least 1 s apart, with back-off and retries on errors. Items already stored are never downloaded again.
 
@@ -89,9 +89,26 @@ uv run python -m pipeline.jobs.ingest --source psx_companies
 - Windows: the UB Mannheim installer, with **Urdu** ticked under "Additional language data". It is found automatically in `C:\Program Files\Tesseract-OCR`, or set `TESSERACT_CMD`.
 - Ubuntu: `apt-get install tesseract-ocr tesseract-ocr-urd`.
 
-**Idempotency.** Each document is keyed by a hash of its stable source id: the PSX announcement id, or the RSS guid. Re-running stores nothing twice. An item whose download fails is not stored, so the next run retries it. If a PDF can't be read, the notice image is tried instead.
+**Idempotency.** Each document is keyed by a hash of its stable source id: the PSX announcement id, or the RSS guid. Re-running stores nothing twice. If a PDF can't be read, the notice image is tried instead.
+
+**Nothing is skipped** (`sources.last_success_at`, the "complete up to" time on the Jobs page):
+- A normal run starts just before the point up to which everything has been stored, not from the last run. A run that failed (PSX down) therefore doesn't move the start forward.
+- An item whose download fails moves that point back to just before it, so the next run retries it (for up to 2 days).
+- The first run of each Pakistan day also re-lists all of yesterday, to catch filings the portal lists late.
+- A one-day backfill (`--date`) never moves the point.
+
+**Pages that are mostly a picture** (a scanned table with only a header and footer as text) are OCR'd too.
 
 ## AI processing
+
+**v1.1 additions** (details in CHANGELOG):
+- **Long filings:** the model reads the cover letter plus the passages around the key rows (profit, EPS, revenue, dividend, book closure), not just the first 8,000 characters. Quotes are still checked against the full text.
+- **PSX titles count as a source:** facts may be quoted from the portal's title ("58.89% Right Issue Rs.1/- Per Share") when the PDF is a scanned table.
+- **News is attributed:** a forecast or claim in a news summary must say whose it is ("ProPakistani reports…", "…: Dawn"), in both languages, or the summary goes to review.
+- **Urdu checks:** no "نل" for nil, short codes (IMF, FBR) in English letters, and بک کلوژر is feminine (ہوگی).
+- **Duplicates:** the same news story from a second outlet within 36 hours is stored as a duplicate (never shown, no AI call) and listed on the first story as "Also reported by".
+- **Results without profit or EPS** go to review.
+- **Rewriting summaries** after a prompt change, from the stored, already verified facts (no new extraction): `uv run python -m pipeline.jobs.run --job resummarise --items 178 181`. Hidden items are left alone.
 
 ```bash
 uv run python -m pipeline.jobs.process              # classify, extract, summarise and check all new documents
@@ -187,13 +204,44 @@ npm run build
 - It uses **resvg**, because `next/og` cannot shape Nastaliq. `lib/card.ts` places mixed English/Urdu runs right to left itself.
 - Fonts are in `web/assets/fonts`.
 
-**Admin** (`/admin`, protected by `ADMIN_TOKEN`; the cookie stores only a hash of it):
+**Admin sign-in** (v1.1):
+- Admins sign in with a one-time link emailed by Supabase Auth. Only emails in the `admin_users` table get a link or a session:
+  `uv run python -m pipeline.jobs.admins add you@example.com` (also `list`, `remove`).
+- The session is a cookie signed with `ADMIN_SESSION_SECRET` (in `web/.env.local`), valid 7 days. Removing an email from `admin_users` ends that person's access at once.
+- After 5 failed sign-ins from one address in 15 minutes, sign-in is refused for that address until the window passes.
+- Emergency password sign-in (email + `ADMIN_TOKEN`) works only while `ADMIN_ALLOW_PASSWORD=1` is set; remove that line once email sign-in works.
+- Supabase settings needed once: Authentication → URL Configuration → add `<SITE_URL>/admin/auth/callback` to Redirect URLs.
+
+**Admin** (`/admin`):
 - **Jobs & health** (`/admin/jobs`):
   - **Running jobs:** buttons start the pipeline on this computer (needs `JOB_RUNNER=local` in `web/.env.local`): fetch new items, summarise new items, or both, optionally for one day or one source. Nothing runs on a schedule yet. The same runs work from the command line: `uv run python -m pipeline.jobs.run --job pipeline`.
   - **Recorded runs:** every run is stored in `job_runs` with its counts and log, and only one runs at a time.
-  - **Health:** the PSX portal total vs stored (capture %), source status and errors, waiting work, and today's AI use per model.
+  - **Health:** the PSX portal total vs stored (capture %), source status and errors with the "complete up to" time, waiting work, today's AI use per model, and delays over the last 7 days (published → stored → on site). Each run shows time per source and AI time.
   - **Alerts:** a source that fails 3 runs in a row shows a red banner on every admin page until it works again.
-- **Review queue:** approve, edit (the same advice-wording checks apply) or hide items. Find any published item by symbol. Hidden items can be shown again.
+- **Review queue:** approve (one by one or several at once), edit, or hide items. Find any published item by symbol. Hidden items can be shown again.
+  - Edits get the same checks as AI summaries: advice wording, Urdu style, and **every number must be in the original filing**. A number that isn't (e.g. the OCR garbled the source) needs the "I checked these numbers" tick. After saving, the page says which numbers changed.
 - **WhatsApp queue:** copy the EN/UR text, download the image, and mark as posted.
+
+**Security** (v1.1):
+- Every response carries a Content Security Policy (nothing loads from other sites), `X-Frame-Options: DENY`, `nosniff`, a referrer policy and (in production) HSTS. `X-Powered-By` is off.
+- The public API (`/api/*`) allows 60 requests per minute per address (`proxy.ts`).
+- Row-level security is on for every table. The public key reads only published items through read-only views; admin tables (`admin_users`, `admin_login_attempts`, `job_runs`, `llm_calls`) are server-only. Tests in `pipeline/tests/test_web_access.py` check this.
+
+## Backups
+
+`.github/workflows/backup.yml` runs every night at 02:30 Pakistan time (and on demand from the Actions tab). It never contacts PSX.
+1. Dumps our tables (schema `public`) from Supabase.
+2. Restores the dump into a throwaway Postgres and counts rows, so every backup is proven restorable.
+3. Encrypts it (AES-256, passphrase `BACKUP_PASSPHRASE`) and keeps it as a workflow artifact for 14 days. Only the encrypted file is uploaded, because artifacts of a public repository can be downloaded by anyone signed in to GitHub.
+
+Needs two repository secrets: `DATABASE_URL` and `BACKUP_PASSPHRASE` (both lines are in your `.env`). Keep a copy of the passphrase somewhere safe: without it a backup can't be opened.
+
+**Restore** (needs Postgres 17 client tools):
+```bash
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in sharekhabar-db-YYYY-MM-DD.dump.enc -out db.dump -pass env:BACKUP_PASSPHRASE
+pg_restore --no-owner --no-privileges --clean --if-exists --dbname="$DATABASE_URL" db.dump
+```
+
+GitHub pauses scheduled workflows in a repository with no activity for 60 days; a push or a manual run starts them again.
 
 More sections (publishing, automation, runbook) are added as each phase is built.

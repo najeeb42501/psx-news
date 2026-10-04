@@ -8,6 +8,7 @@ import { TYPE_GROUPS, groupOf } from "@/lib/categories";
 import { PAGE_SIZE, type WebItem, getFeed, getHighlights, getSectors, getUpcoming } from "@/lib/data";
 import { keyChips } from "@/lib/facts";
 import { formatPlainDate, pktDay } from "@/lib/format";
+import { UrduText } from "@/components/urdu-text";
 
 export const revalidate = 60;
 
@@ -29,7 +30,7 @@ function HighlightTile({ item }: { item: WebItem }) {
       </div>
       <p className="line-clamp-2 text-sm font-semibold leading-snug">
         <span className="en-only">{item.headline_en}</span>
-        <span className="ur-only ur ur-tight">{item.headline_ur}</span>
+        <span className="ur-only ur ur-tight">{item.headline_ur && <UrduText text={item.headline_ur} />}</span>
       </p>
       <div className="mt-auto">
         <Chips chips={chips} />

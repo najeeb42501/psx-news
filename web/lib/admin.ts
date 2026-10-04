@@ -1,25 +1,49 @@
 // Admin-only database access, with the server-side secret key (bypasses row-level security).
 // Never import this from a Client Component.
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { SESSION_COOKIE, readSession } from "@/lib/session";
 
-export const ADMIN_COOKIE = "sk_admin";
-
-/** The cookie holds a hash of ADMIN_TOKEN, never the token itself. */
-export async function adminCookieValue(): Promise<string> {
-  const data = new TextEncoder().encode(`sharekhabar-admin:${process.env.ADMIN_TOKEN ?? ""}`);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Buffer.from(hash).toString("hex");
+/** The signed-in admin's email, or null. The signed cookie must be valid and unexpired, and the
+ *  email must still be in admin_users (removing a row there signs that person out). */
+export async function adminEmail(): Promise<string | null> {
+  const email = await readSession((await cookies()).get(SESSION_COOKIE)?.value);
+  return email && (await isAdminEmail(email)) ? email : null;
 }
 
 export async function isAdmin(): Promise<boolean> {
-  if (!process.env.ADMIN_TOKEN) return false;
-  const value = (await cookies()).get(ADMIN_COOKIE)?.value;
-  return !!value && value === (await adminCookieValue());
+  return (await adminEmail()) !== null;
 }
 
 export async function requireAdmin() {
   if (!(await isAdmin())) throw new Error("Not signed in as admin");
+}
+
+export async function isAdminEmail(email: string): Promise<boolean> {
+  const rows = await call<{ email: string }[]>(`admin_users?select=email&email=eq.${encodeURIComponent(email.trim().toLowerCase())}`);
+  return rows.length > 0;
+}
+
+// --- sign-in throttle ---------------------------------------------------------------
+export const MAX_FAILURES = 5;
+export const FAILURE_WINDOW_MIN = 15;
+
+export async function clientIp(): Promise<string> {
+  const h = await headers();
+  return (h.get("x-forwarded-for")?.split(",")[0] ?? h.get("x-real-ip") ?? "local").trim();
+}
+
+/** True if this address had MAX_FAILURES failed sign-ins in the last FAILURE_WINDOW_MIN minutes. */
+export async function tooManyFailures(ip: string): Promise<boolean> {
+  const since = new Date(Date.now() - FAILURE_WINDOW_MIN * 60_000).toISOString();
+  const rows = await call<{ id: number }[]>(
+    `admin_login_attempts?select=id&ip=eq.${encodeURIComponent(ip)}&ok=eq.false&at=gte.${encodeURIComponent(since)}&limit=${MAX_FAILURES}`,
+  );
+  return rows.length >= MAX_FAILURES;
+}
+
+export async function recordAttempt(ip: string, ok: boolean) {
+  await call("admin_login_attempts", { method: "POST", body: JSON.stringify({ ip, ok }) });
 }
 
 const BASE = `${process.env.SUPABASE_URL}/rest/v1`;
@@ -82,6 +106,30 @@ export async function setReviewStatus(id: number, status: "approved" | "hidden" 
   await call(`items?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ review_status: status }) });
 }
 
+/** Approve several items waiting for review at once (only ones still in the queue). */
+export async function approveMany(ids: number[]) {
+  if (!ids.length) return;
+  await call(`items?id=in.(${ids.join(",")})&review_status=eq.needs_review`, {
+    method: "PATCH",
+    body: JSON.stringify({ review_status: "approved" }),
+  });
+}
+
+/** What an edit's numbers are checked against: the filing text, its title, the company and the facts. */
+export async function itemSources(id: number): Promise<{ texts: string[]; before: { en: string; ur: string } }> {
+  const [item] = await call<(AdminItem & { documents: { text: string | null } })[]>(
+    `items?select=facts,symbol,documents(title,text),summaries(lang,headline,body,created_at)&id=eq.${id}`,
+  );
+  if (!item) throw new Error(`item ${id} not found`);
+  const latest = (lang: string) =>
+    item.summaries.filter((s) => s.lang === lang).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  const text = (s?: AdminSummary) => (s ? `${s.headline}\n${s.body}` : "");
+  return {
+    texts: [item.documents.title, item.documents.text ?? "", JSON.stringify(item.facts)],
+    before: { en: text(latest("en")), ur: text(latest("ur")) },
+  };
+}
+
 /** Save an admin's corrected summary as the newest version for that language. */
 export async function saveManualSummary(itemId: number, lang: "en" | "ur", headline: string, body: string) {
   await call("summaries?on_conflict=item_id,lang,prompt_version", {
@@ -133,7 +181,8 @@ export type IngestSummary = {
   already_known: number;
   failed: number;
   errors: string[];
-  listed: { date_from: string; date_to: string; listed: number } | null;
+  listed: { date_from: string; date_to: string; listed: number; read?: number } | null;
+  seconds?: number;
 };
 
 export type JobRun = {
@@ -146,7 +195,10 @@ export type JobRun = {
   finished_at: string | null;
   summary: {
     ingest?: IngestSummary[];
-    process?: { processed: number; needs_review: number; failed: number; deferred: number; by_category: Record<string, number>; notes: string[] };
+    process?: {
+      processed: number; needs_review: number; failed: number; deferred: number; duplicates?: number;
+      seconds?: Record<string, number>; by_category: Record<string, number>; notes: string[];
+    };
   };
   log: string | null;
 };
@@ -187,7 +239,8 @@ export function sourceAlerts(runs: JobRun[]): SourceAlert[] {
 export type Health = {
   documents: Record<string, number>;
   items: Record<string, number>;
-  sources: { id: string; kind: string; enabled: boolean; last_run_at: string | null; last_error: string | null }[];
+  sources: { id: string; kind: string; enabled: boolean; last_run_at: string | null; last_success_at: string | null; last_error: string | null }[];
+  delays: { source_id: string; n: number; stored_median: number; stored_p90: number; summarised_median: number; summarised_p90: number }[];
   docs_by_day: { source_id: string; day: string; n: number }[];
   llm_today: { provider: string; model: string; ok: number; failed: number; prompt_tokens: number; completion_tokens: number }[];
 };

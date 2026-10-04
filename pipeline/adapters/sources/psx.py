@@ -40,6 +40,10 @@ class PsxBlockedError(RuntimeError):
     """The portal refused us, most likely because its request-token scheme changed."""
 
 
+class PsxLayoutError(RuntimeError):
+    """The portal answered, but its table could not be read: the page layout changed."""
+
+
 def extract_token(page_html: str) -> str:
     m = _TOKEN_RE.search(page_html)
     if not m:
@@ -150,8 +154,17 @@ class PsxClient:
             html = resp.text
             if "<table" not in html:
                 raise PsxBlockedError("PSX returned no announcements table")
-            out.extend(parse_table(html, source_id, type_code))
+            page_items = parse_table(html, source_id, type_code)
             self.last_total = parse_total(html)  # how many the portal lists for these dates
+            expected = min(PAGE_SIZE, self.last_total - n * PAGE_SIZE)
+            if expected > 0 and not page_items:
+                # Rows are listed but none could be read: the page layout has most likely changed.
+                # Fail loudly instead of reporting "nothing new".
+                raise PsxLayoutError(
+                    f"PSX lists {self.last_total} announcements but none could be read from page {n + 1}; "
+                    "the portal layout may have changed"
+                )
+            out.extend(page_items)
             if (n + 1) * PAGE_SIZE >= self.last_total:
                 break
         return out
@@ -182,7 +195,7 @@ class PsxAnnouncementsSource:
         start, end = since.astimezone(PKT), until.astimezone(PKT)
         items = self.client.announcements(self.type_code, start.date(), end.date(), self.id)
         self.last_listed = {"date_from": start.date().isoformat(), "date_to": end.date().isoformat(),
-                            "listed": self.client.last_total}
+                            "listed": self.client.last_total, "read": len(items)}
         return [i for i in items if i.published_at is None or start <= i.published_at <= end]
 
     def fetch_content(self, raw: RawItem) -> RawItem:
@@ -197,4 +210,4 @@ def PsxNoticesSource(id: str, client: PsxClient, type_code: str = "E") -> PsxAnn
     return PsxAnnouncementsSource(id, client, type_code)
 
 
-__all__ = ["PsxAnnouncementsSource", "PsxNoticesSource", "PsxClient", "PsxBlockedError"]
+__all__ = ["PsxAnnouncementsSource", "PsxNoticesSource", "PsxClient", "PsxBlockedError", "PsxLayoutError"]

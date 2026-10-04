@@ -1,0 +1,81 @@
+name: Nightly database backup
+
+# Copies our own database (schema "public": companies, documents, items, summaries, posts, runs)
+# every night, encrypted, and keeps 14 days of copies as workflow artifacts. It never contacts PSX.
+# The repository is public and anyone signed in to GitHub can download artifacts, so only the
+# encrypted file is uploaded. Each run also restores the copy into a throwaway Postgres to prove
+# it can be restored. Restore steps: README, "Backups".
+#
+# Needs two repository secrets: DATABASE_URL (Supabase session pooler URL, same as .env) and
+# BACKUP_PASSPHRASE (the BACKUP_PASSPHRASE line in .env; without it a backup can't be opened).
+
+on:
+  schedule:
+    - cron: "30 21 * * *" # 02:30 Pakistan time
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      restore_test:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      PG: docker run --rm --network host -v ${{ github.workspace }}:/work -w /work -e DATABASE_URL postgres:17
+    steps:
+      - name: Check the secrets are set
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::Add the DATABASE_URL and BACKUP_PASSPHRASE repository secrets (README, Backups)."
+            exit 1
+          fi
+
+      - name: Dump the database
+        run: |
+          $PG pg_dump "$DATABASE_URL" --schema=public --no-owner --no-privileges --format=custom --file=db.dump
+          ls -lh db.dump
+
+      - name: Restore it into a throwaway Postgres and count rows
+        env:
+          TEST_DB: postgresql://postgres:postgres@localhost:5433/postgres
+        run: |
+          # Row-level security policies name these Supabase roles; plain Postgres needs them to exist.
+          $PG psql "$TEST_DB" -v ON_ERROR_STOP=1 -c "create role anon; create role authenticated; create role service_role;"
+          $PG pg_restore --no-owner --no-privileges --exit-on-error --dbname="$TEST_DB" db.dump
+          $PG psql "$TEST_DB" -v ON_ERROR_STOP=1 -At -c "
+            select 'companies ' || count(*) from companies union all
+            select 'documents ' || count(*) from documents union all
+            select 'items ' || count(*) from items union all
+            select 'summaries ' || count(*) from summaries" | tee counts.txt
+          if grep -qE '^(companies|items) 0$' counts.txt; then
+            echo "::error::The restored copy is empty"; exit 1
+          fi
+
+      - name: Encrypt
+        run: |
+          name="sharekhabar-db-$(date -u +%Y-%m-%d).dump.enc"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in db.dump -out "$name" -pass env:BACKUP_PASSPHRASE
+          rm db.dump
+          echo "BACKUP_FILE=$name" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 14
+          if-no-files-found: error

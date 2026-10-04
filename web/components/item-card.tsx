@@ -5,6 +5,7 @@ import { categoryLabel, groupOf, isNews, sourceLabel } from "@/lib/categories";
 import type { WebItem } from "@/lib/data";
 import { type Chip, keyChips } from "@/lib/facts";
 import { pktDay, pktDayOffset, stripSymbol } from "@/lib/format";
+import { UrduText } from "@/components/urdu-text";
 
 const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit" });
 const dayFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", weekday: "long", day: "numeric", month: "long" });
@@ -45,7 +46,12 @@ export function Chips({ chips, size = "sm" }: { chips: Chip[]; size?: "sm" | "lg
           <span className="text-muted">
             <L en={c.en} ur={c.ur} />
           </span>{" "}
-          <b className={`tabular-nums ${size === "lg" ? "text-base" : ""} ${tone[c.tone]}`}>{c.value}</b>
+          <b className={`tabular-nums ${size === "lg" ? "text-base" : ""} ${tone[c.tone]}`}>
+            <span className="ui-en">{c.value}</span>
+            <span className="ui-ur ur ur-tight !leading-normal">
+              <UrduText text={c.valueUr} />
+            </span>
+          </b>
         </span>
       ))}
     </div>
@@ -58,7 +64,7 @@ function Headline({ item, className = "" }: { item: WebItem; className?: string 
       {item.headline_en && <span className="en-only block">{item.headline_en}</span>}
       {item.headline_ur && (
         <span className="ur-only ur block" lang="ur">
-          {item.headline_ur}
+          <UrduText text={item.headline_ur} />
         </span>
       )}
     </Link>
@@ -71,7 +77,7 @@ function Body({ item }: { item: WebItem }) {
       {item.body_en && <p className="en-only text-sm leading-relaxed text-foreground/80">{item.body_en}</p>}
       {item.body_ur && (
         <p className="ur-only ur text-sm text-foreground/80" lang="ur">
-          {item.body_ur}
+          <UrduText text={item.body_ur} />
         </p>
       )}
     </>

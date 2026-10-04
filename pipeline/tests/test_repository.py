@@ -152,3 +152,24 @@ def test_reseeding_keeps_real_names(repo: Repository) -> None:
         row = repo.conn.execute("select name, sector from companies where symbol = 'TESTR1'").fetchone()
         name, sector = row["name"], row["sector"]
     assert (name, sector) == ("Proper Name Ltd", "CHEMICAL")
+
+
+def test_capture_mark_and_news_duplicates(repo: Repository) -> None:
+    _seed(repo)
+    mark = datetime(2026, 10, 3, 12, 0, tzinfo=UTC)
+    repo.record_source_run("test_source", None, mark)
+    repo.record_source_run("test_source", "PSX down")  # a failed run keeps the mark
+    src = repo.get_source("test_source")
+    assert src is not None and src.last_success_at == mark and src.last_error == "PSX down"
+
+    repo.upsert_source(SourceRecord(id="test_news", kind="rss", url="https://example.com/rss"))
+    news = _doc().model_copy(update={"source_id": "test_news", "symbol": None, "title": "Test port blockade story"})
+    doc_id = repo.save_document(news)
+    assert doc_id is not None
+    item_id = repo.save_item(Item(document_id=doc_id, category="macro", importance=2, facts={"key_points": []}))
+    found = [r for r in repo.recent_news_items(datetime(2026, 10, 1, tzinfo=UTC)) if r[0] == item_id]
+    assert found == [(item_id, "test_news", "Test port blockade story", news.url)]
+    repo.add_also_reported(item_id, {"source_id": "dawn_business", "url": "https://dawn/1", "title": "x"})
+    repo.add_also_reported(item_id, {"source_id": "tribune_business", "url": "https://tribune/1", "title": "y"})
+    stored = repo.get_item(item_id)
+    assert stored is not None and [e["source_id"] for e in stored.facts["also_reported"]] == ["dawn_business", "tribune_business"]

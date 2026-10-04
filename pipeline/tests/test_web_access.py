@@ -68,6 +68,11 @@ def test_anon_cannot_read_private_data(seeded) -> None:
     assert _denied(conn, "select * from sources")
     assert _denied(conn, "select text from documents")
     assert _denied(conn, "select * from schema_migrations")
+    # v1.1: admin list, sign-in attempts, job runs and AI logs are server-only
+    for table in ("admin_users", "admin_login_attempts", "job_runs", "llm_calls"):
+        rows = _rows_or_denied(conn, f"select * from {table}")
+        assert rows in (None, []), f"anon could read {table}"
+    assert _denied(conn, "select admin_health()")
 
 
 def test_anon_cannot_write(seeded) -> None:
@@ -75,3 +80,12 @@ def test_anon_cannot_write(seeded) -> None:
     assert _denied(conn, f"update items set review_status = 'auto' where id = {ids['hidden']}")
     assert _denied(conn, "insert into companies (symbol, name) values ('X', 'x')")
     assert _denied(conn, "delete from web_companies")
+
+
+def _rows_or_denied(conn, sql: str):
+    """None if access is refused; otherwise the rows (row-level security may return none)."""
+    try:
+        with conn.transaction():
+            return conn.execute(sql).fetchall()
+    except Exception:  # noqa: BLE001 - permission errors
+        return None

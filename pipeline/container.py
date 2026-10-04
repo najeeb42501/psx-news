@@ -24,7 +24,7 @@ PROMPTS_DIR = CONFIG_DIR / "prompts"
 GLOSSARY = CONFIG_DIR / "glossary_ur.yaml"
 # Bump a version by adding e.g. prompts/summarise_v2.md and changing it here; the
 # version is stored with every summary.
-PROMPT_VERSIONS = {"classify": "classify_v1", "extract": "extract_v3", "summarise": "summarise_v5"}
+PROMPT_VERSIONS = {"classify": "classify_v2", "extract": "extract_v3", "summarise": "summarise_v6"}
 
 
 def load_source_configs(path: Path = SOURCES_YAML) -> list[dict[str, Any]]:
@@ -102,6 +102,7 @@ class Container:
             versions=dict(PROMPT_VERSIONS),
             glossary=yaml.safe_load(GLOSSARY.read_text(encoding="utf-8")),
             max_ai_docs=max_ai_docs,
+            source_names={c["id"]: c.get("name", c["id"]) for c in self.source_configs},
         )
 
     def source_records(self) -> list[SourceRecord]:

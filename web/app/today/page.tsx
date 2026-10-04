@@ -6,6 +6,7 @@ import { L } from "@/components/l";
 import { getToday } from "@/lib/data";
 import { keyChips } from "@/lib/facts";
 import { formatPlainDate, formatPlainDateUr, pktDay } from "@/lib/format";
+import { UrduText } from "@/components/urdu-text";
 
 export const revalidate = 60;
 export const metadata: Metadata = { title: "Today's 10 things" };
@@ -50,11 +51,11 @@ export default async function TodayPage() {
               </div>
               <Link href={`/item/${it.id}`} className="block font-semibold leading-snug hover:text-brand">
                 <span className="en-only">{it.headline_en}</span>
-                <span className="ur-only ur block">{it.headline_ur}</span>
+                <span className="ur-only ur block">{it.headline_ur && <UrduText text={it.headline_ur} />}</span>
               </Link>
               <Chips chips={keyChips(it.facts)} />
               {it.body_en && <p className="en-only text-sm text-foreground/80">{it.body_en}</p>}
-              {it.body_ur && <p className="ur-only ur text-sm text-foreground/80">{it.body_ur}</p>}
+              {it.body_ur && <p className="ur-only ur text-sm text-foreground/80"><UrduText text={it.body_ur} /></p>}
             </div>
           </li>
         ))}

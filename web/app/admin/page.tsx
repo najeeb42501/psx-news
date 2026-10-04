@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { approve, hide, unhide } from "@/app/admin/actions";
+import { approve, approveSelected, hide, unhide } from "@/app/admin/actions";
 import { EditSummaryForm } from "@/components/admin/edit-summary-form";
 import { type AdminItem, hiddenItems, latestSummary, recentPublished, requireAdmin, reviewQueue } from "@/lib/admin";
 import { categoryLabel } from "@/lib/categories";
@@ -54,8 +54,20 @@ export default async function ReviewPage({ searchParams }: PageProps<"/admin">) 
           These failed an automatic check, so they are not shown or posted. Fix the text and save, approve as is, or hide.
         </p>
         {queue.length === 0 && <p className="text-sm">Nothing waiting.</p>}
+        {queue.length > 1 && (
+          <form id="bulk-approve" action={approveSelected} className="flex items-center gap-2 text-sm">
+            <button className="rounded-md border border-border px-3 py-1">Approve selected as is</button>
+            <span className="text-muted">Tick the items below that are correct as they are.</span>
+          </form>
+        )}
         {queue.map((item) => (
           <article key={item.id} className="space-y-2 rounded-xl border border-amber-400 bg-card p-3">
+            {queue.length > 1 && (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="ids" value={item.id} form="bulk-approve" className="size-4" />
+                Select for “Approve selected”
+              </label>
+            )}
             <ItemHeader item={item} />
             <p className="text-sm font-medium">{item.documents.title}</p>
             {item.facts.review_notes && (

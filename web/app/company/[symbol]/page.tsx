@@ -6,6 +6,7 @@ import { FollowStockButton } from "@/components/follow-stock-button";
 import { Icon } from "@/components/icons";
 import { Chips, Feed } from "@/components/item-card";
 import { L } from "@/components/l";
+import { UrduText } from "@/components/urdu-text";
 import { getCompany, getCompanyItems, getUpcoming } from "@/lib/data";
 import { factRows, keyChips } from "@/lib/facts";
 import { formatDate } from "@/lib/format";
@@ -100,7 +101,12 @@ export default async function CompanyPage({ params }: PageProps<"/company/[symbo
                           <span className="ui-en">{r.en}</span>
                           <span className="ui-ur ur ur-tight">{r.ur || r.en}</span>
                         </th>
-                        <td className="py-1 text-end font-semibold tabular-nums">{r.value}</td>
+                        <td className="py-1 text-end font-semibold tabular-nums">
+                          <span className="ui-en">{r.value}</span>
+                          <span className="ui-ur ur ur-tight">
+                            <UrduText text={r.valueUr} />
+                          </span>
+                        </td>
                       </tr>
                     ))}
                 </tbody>
@@ -126,7 +132,12 @@ export default async function CompanyPage({ params }: PageProps<"/company/[symbo
                         {formatDate(d.sort_time)}
                       </Link>
                       <span className="text-right">
-                        {row?.en}: <b>{row?.value}</b>
+                        <span className="ui-en">
+                          {row?.en}: <b>{row?.value}</b>
+                        </span>
+                        <span className="ui-ur ur ur-tight">
+                          {row?.ur}: <b>{row && <UrduText text={row.valueUr} />}</b>
+                        </span>
                       </span>
                     </li>
                   );

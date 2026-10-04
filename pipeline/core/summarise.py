@@ -81,11 +81,12 @@ the same precision: if the facts say "December 2027", write "December 2027", nev
 
 
 def build_summarise_prompt(template: str, *, company: str, category: str, facts: Facts,
-                           glossary: dict[str, str], feedback: str = "") -> str:
+                           glossary: dict[str, str], feedback: str = "", source: str = "") -> str:
     terms = "\n".join(f"  {en} = {ur}" for en, ur in glossary.items())
     return (
         template.replace("{{company}}", company)
         .replace("{{category}}", category)
+        .replace("{{source}}", source or "PSX filing by the company")
         .replace("{{facts}}", facts_for_prompt(facts))
         .replace("{{glossary}}", terms)
         .replace("{{feedback}}", FEEDBACK.format(problems=feedback) if feedback else "")
@@ -93,9 +94,10 @@ def build_summarise_prompt(template: str, *, company: str, category: str, facts:
 
 
 def summarise_llm(llm: LLMProvider, template: str, *, company: str, category: str, facts: Facts,
-                  glossary: dict[str, str], feedback: str = "", document_id: int | None = None) -> BilingualSummary:
+                  glossary: dict[str, str], feedback: str = "", document_id: int | None = None,
+                  source: str = "") -> BilingualSummary:
     prompt = build_summarise_prompt(template, company=company, category=category, facts=facts,
-                                    glossary=glossary, feedback=feedback)
+                                    glossary=glossary, feedback=feedback, source=source)
     result = llm.complete_json(prompt, BilingualSummary, purpose="summarise", document_id=document_id)
     assert isinstance(result, BilingualSummary)
     return tidy(result)
@@ -166,6 +168,8 @@ def summarise_dates(category: str, facts: Facts, *, symbol: str | None, name: st
         purpose_ur = (f"، جس میں {d_ur(pe)} کو ختم ہونے {PERIOD_UR_ENDING[pk]} {PERIOD_UR[pk]}"
                       " کے فنانشل رزلٹس پر غور کیا جائے گا")
     meeting_en, meeting_ur = MEETING_EN[kind], MEETING_UR[kind]
+    if kind == "agm" and "review meeting" in title.lower():  # modarabas hold an annual review meeting
+        meeting_en, meeting_ur = "annual review meeting", "سالانہ ریویو میٹنگ"
     return BilingualSummary(
         en=LangSummary(headline=_clip(f"{short}: {meeting_en} on {d_en(md.value)}"),
                        body=f"{full} will hold its {meeting_en} on {d_en(md.value)}{at_en}{purpose_en}.{closure_en}"),
@@ -282,7 +286,7 @@ TEMPLATES: dict[str, tuple[str, str, str, str]] = {
         "SECP کا نوٹس",
         "SECP نے ایک نوٹس جاری کیا ہے۔"),
     "other_news": (
-        "{title}",
+        "{source_title}",
         "Read the full story at the source.",
         "کاروباری خبر",
         "مکمل خبر اصل ذریعے پر پڑھیں۔"),
@@ -310,12 +314,15 @@ TEMPLATES: dict[str, tuple[str, str, str, str]] = {
 }
 
 
-def summarise_template(category: str, *, symbol: str | None, name: str | None, title: str) -> BilingualSummary:
+def summarise_template(category: str, *, symbol: str | None, name: str | None, title: str,
+                       source: str | None = None) -> BilingualSummary:
+    """source: a news outlet's name; its headline is then shown as theirs ("Dawn: ...")."""
     short, full = _co(symbol, name)
     tpl = TEMPLATES.get(category, TEMPLATES["other_corporate"])
     price = "price" in title.lower()
+    clean = title.strip().rstrip(".")
     fill = {
-        "short": short, "full": full, "title": title.strip().rstrip("."),
+        "short": short, "full": full, "title": clean, "source_title": f"{source}: {clean}" if source else clean,
         "what": "price" if price else "trading volume",
         "what_ur": "قیمت" if price else "ٹریڈنگ والیوم",
     }

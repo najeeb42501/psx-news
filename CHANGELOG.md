@@ -115,3 +115,13 @@
   - All 156 item pages: 200 for published items, 404 for unpublished ones. Displayed EPS and dividends match the database, and the bilingual disclaimer is on every page.
   - All 156 share cards and 104 company pages render.
   - The feed shows exactly the 145 published items and never hidden ones, and the results tracker lists all 17 companies.
+
+### Manual job runs and health page (2026-10-04)
+
+- Scheduled jobs are postponed until the pipeline is verified, by decision. Jobs run only when started by hand.
+- `pipeline.jobs.run` runs ingest / process / both as one recorded run (`job_runs`, migration 006), with its log and summary, and refuses to start while another run is in progress.
+- Admin **Jobs & health** page:
+  - Run buttons, with options for a specific day, one source and the AI budget.
+  - Live-updating run history with per-source counts and logs.
+  - Capture check: the PSX portal's own total (now recorded on every fetch) vs documents stored, per source.
+  - Source status and errors, work waiting, and AI use today per model (`admin_health()`, migration 007, admin-only).

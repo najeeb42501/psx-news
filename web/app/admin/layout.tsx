@@ -16,6 +16,9 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           <Link href="/admin" className="underline">
             Review queue
           </Link>
+          <Link href="/admin/jobs" className="underline">
+            Jobs &amp; health
+          </Link>
           <Link href="/admin/whatsapp" className="underline">
             WhatsApp queue
           </Link>

@@ -120,6 +120,7 @@ class PsxClient:
 
     def __init__(self, http: PoliteClient) -> None:
         self.http = http
+        self.last_total = 0
 
     def _token(self, page: str) -> str:
         return extract_token(self.http.get(f"{BASE}/announcements/{page}").text)
@@ -135,6 +136,7 @@ class PsxClient:
         page = TYPE_PAGES[type_code]
         token = self._token(page)
         out: list[RawItem] = []
+        self.last_total = 0
         for n in range(MAX_PAGES):
             resp = self.http.post(
                 f"{BASE}/announcements",
@@ -149,7 +151,8 @@ class PsxClient:
             if "<table" not in html:
                 raise PsxBlockedError("PSX returned no announcements table")
             out.extend(parse_table(html, source_id, type_code))
-            if (n + 1) * PAGE_SIZE >= parse_total(html):
+            self.last_total = parse_total(html)  # how many the portal lists for these dates
+            if (n + 1) * PAGE_SIZE >= self.last_total:
                 break
         return out
 
@@ -172,11 +175,14 @@ class PsxAnnouncementsSource:
         self.id = id
         self.client = client
         self.type_code = type_code
+        self.last_listed: dict | None = None  # portal's own count for the last date range fetched
 
     def fetch_new(self, since: datetime, until: datetime | None = None) -> list[RawItem]:
         until = until or datetime.now(PKT)
         start, end = since.astimezone(PKT), until.astimezone(PKT)
         items = self.client.announcements(self.type_code, start.date(), end.date(), self.id)
+        self.last_listed = {"date_from": start.date().isoformat(), "date_to": end.date().isoformat(),
+                            "listed": self.client.last_total}
         return [i for i in items if i.published_at is None or start <= i.published_at <= end]
 
     def fetch_content(self, raw: RawItem) -> RawItem:

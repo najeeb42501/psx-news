@@ -247,3 +247,30 @@ def test_dates_fall_back_to_ai_when_rules_cannot_read_them() -> None:
     llm = ScriptedLLM({"extract": [agm, agm]})
     process_documents(repo.documents_to_process(10), repo, llm, CFG)
     assert [p for p, _ in llm.prompts][:1] == ["extract"]
+
+
+def test_job_runner_records_run_and_blocks_overlap(monkeypatch) -> None:
+    from pipeline.jobs import run as run_job
+    from pipeline.tests.fakes import InMemoryRepository
+
+    repo = InMemoryRepository()
+
+    class C:
+        pass
+
+    c = C()
+    c.repo = repo
+    monkeypatch.setattr(run_job, "build_container", lambda: c)
+    monkeypatch.setattr(run_job.process, "run", lambda c, max_ai: print("processed!") or _Stats())
+
+    class _Stats:
+        processed, needs_review, failed, deferred, notes = 3, 1, 0, 0, []
+        by_category = {"results": 3}
+
+    assert run_job.main(["--job", "process", "--triggered-by", "admin"]) == 0
+    (run,) = repo.job_runs.values()
+    assert run["status"] == "success" and run["triggered_by"] == "admin"
+    assert run["summary"]["process"]["processed"] == 3 and "processed!" in run["log"]
+
+    repo.start_job_run("ingest", {}, "admin")  # still running
+    assert run_job.main(["--job", "process"]) == 2

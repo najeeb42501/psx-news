@@ -123,3 +123,46 @@ export async function markPosted(id: number) {
     body: JSON.stringify({ status: "posted", posted_at: new Date().toISOString() }),
   });
 }
+
+// --- Jobs & health ----------------------------------------------------------------
+
+export type IngestSummary = {
+  source_id: string;
+  fetched: number;
+  new: number;
+  already_known: number;
+  failed: number;
+  errors: string[];
+  listed: { date_from: string; date_to: string; listed: number } | null;
+};
+
+export type JobRun = {
+  id: number;
+  job: string;
+  params: Record<string, unknown>;
+  triggered_by: string;
+  status: "running" | "success" | "failed";
+  started_at: string;
+  finished_at: string | null;
+  summary: {
+    ingest?: IngestSummary[];
+    process?: { processed: number; needs_review: number; failed: number; deferred: number; by_category: Record<string, number>; notes: string[] };
+  };
+  log: string | null;
+};
+
+export async function jobRuns(limit = 20): Promise<JobRun[]> {
+  return call<JobRun[]>(`job_runs?select=*&order=started_at.desc&limit=${limit}`);
+}
+
+export type Health = {
+  documents: Record<string, number>;
+  items: Record<string, number>;
+  sources: { id: string; kind: string; enabled: boolean; last_run_at: string | null; last_error: string | null }[];
+  docs_by_day: { source_id: string; day: string; n: number }[];
+  llm_today: { provider: string; model: string; ok: number; failed: number; prompt_tokens: number; completion_tokens: number }[];
+};
+
+export async function health(): Promise<Health> {
+  return call<Health>("rpc/admin_health", { method: "POST", body: "{}" });
+}

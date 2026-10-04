@@ -27,6 +27,7 @@ class IngestResult:
     already_known: int = 0
     failed: int = 0
     errors: list[str] = field(default_factory=list)
+    listed: dict | None = None  # the source's own count for the dates fetched, if it reports one
 
     @property
     def source_error(self) -> str | None:
@@ -71,6 +72,7 @@ def ingest_source(
         repo.record_source_run(source.id, result.errors[0])
         return result
 
+    result.listed = getattr(source, "last_listed", None)  # optional: PSX portal reports its total
     by_hash: dict[str, RawItem] = {}
     for raw in raws:
         by_hash.setdefault(content_hash(raw), raw)

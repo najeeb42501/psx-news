@@ -10,8 +10,25 @@ from __future__ import annotations
 import argparse
 import sys
 
-from pipeline.container import build_container
-from pipeline.core.process import process_documents
+from pipeline.container import Container, build_container
+from pipeline.core.process import ProcessStats, process_documents
+
+
+def run(c: Container, max_ai: int = 25, limit: int = 500, reprocess: list[str] | None = None) -> ProcessStats:
+    if reprocess:
+        n = c.repo.reset_for_reprocessing(reprocess)
+        print(f"process: {n} documents marked for reprocessing")
+    docs = c.repo.documents_to_process(limit)
+    stats = process_documents(docs, c.repo, c.llm, c.process_config(max_ai), extract_llm=c.extract_llm)
+    print(
+        f"process: processed={stats.processed} needs_review={stats.needs_review} "
+        f"failed={stats.failed} deferred={stats.deferred}"
+    )
+    for name, n in stats.by_category.most_common():
+        print(f"    {name:28} {n}")
+    for note in stats.notes[:10]:
+        print(f"    ! {note}")
+    return stats
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -21,21 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--reprocess", nargs="+", metavar="CATEGORY",
                     help="mark documents of these item categories as new again (e.g. after a prompt change)")
     args = ap.parse_args(argv)
-
-    c = build_container()
-    if args.reprocess:
-        n = c.repo.reset_for_reprocessing(args.reprocess)
-        print(f"process: {n} documents marked for reprocessing")
-    docs = c.repo.documents_to_process(args.limit)
-    stats = process_documents(docs, c.repo, c.llm, c.process_config(args.max_ai), extract_llm=c.extract_llm)
-    print(
-        f"process: processed={stats.processed} needs_review={stats.needs_review} "
-        f"failed={stats.failed} deferred={stats.deferred}"
-    )
-    for name, n in stats.by_category.most_common():
-        print(f"    {name:28} {n}")
-    for note in stats.notes[:10]:
-        print(f"    ! {note}")
+    run(build_container(), args.max_ai, args.limit, args.reprocess)
     return 0
 
 

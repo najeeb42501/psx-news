@@ -185,6 +185,10 @@ npm run build
 - Fonts are in `web/assets/fonts`.
 
 **Admin** (`/admin`, protected by `ADMIN_TOKEN`; the cookie stores only a hash of it):
+- **Jobs & health** (`/admin/jobs`):
+  - **Running jobs:** buttons start the pipeline on this computer (needs `JOB_RUNNER=local` in `web/.env.local`): fetch new items, summarise new items, or both, optionally for one day or one source. Nothing runs on a schedule yet. The same runs work from the command line: `uv run python -m pipeline.jobs.run --job pipeline`.
+  - **Recorded runs:** every run is stored in `job_runs` with its counts and log, and only one runs at a time.
+  - **Health:** the PSX portal total vs stored (capture %), source status and errors, waiting work, and today's AI use per model.
 - **Review queue:** approve, edit (the same advice-wording checks apply) or hide items. Find any published item by symbol. Hidden items can be shown again.
 - **WhatsApp queue:** copy the EN/UR text, download the image, and mark as posted.
 

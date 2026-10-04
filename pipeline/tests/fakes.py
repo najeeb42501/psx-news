@@ -15,6 +15,7 @@ class InMemoryRepository:
         self.summaries: dict[int, Summary] = {}
         self.posts: dict[int, Post] = {}
         self.llm_calls: list[LLMCall] = []
+        self.job_runs: dict[int, dict] = {}
         self._next_id = 0
 
     def _id(self) -> int:
@@ -139,3 +140,15 @@ class InMemoryRepository:
 
     def log_llm_call(self, call: LLMCall) -> None:
         self.llm_calls.append(call)
+
+    def start_job_run(self, job: str, params: dict, triggered_by: str) -> int:
+        run_id = self._id()
+        self.job_runs[run_id] = {"job": job, "params": params, "triggered_by": triggered_by, "status": "running"}
+        return run_id
+
+    def finish_job_run(self, run_id: int, status: str, summary: dict, log: str) -> None:
+        self.job_runs[run_id].update(status=status, summary=summary, log=log)
+
+    def running_job_run(self, stale_after_minutes: int = 90) -> int | None:
+        running = [i for i, r in self.job_runs.items() if r["status"] == "running"]
+        return running[-1] if running else None

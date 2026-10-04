@@ -87,9 +87,11 @@ def test_parse_symbols() -> None:
 class _FakeClient:
     def __init__(self) -> None:
         self.calls: list[tuple] = []
+        self.last_total = 0
 
     def announcements(self, type_code, date_from, date_to, source_id):
         self.calls.append((type_code, date_from, date_to))
+        self.last_total = parse_total(COMPANIES)
         return parse_table(COMPANIES, source_id, type_code)
 
     def download(self, url):
@@ -105,5 +107,6 @@ def test_source_filters_by_time_window() -> None:
         datetime(2026, 10, 2, 16, 0, tzinfo=PKT) <= i.published_at <= datetime(2026, 10, 2, 16, 20, tzinfo=PKT)
         for i in items
     )
+    assert src.last_listed == {"date_from": "2026-10-02", "date_to": "2026-10-02", "listed": 125}
     fetched = src.fetch_content(items[0])
     assert fetched.content == b"%PDF-fake" and fetched.content_type == "application/pdf"

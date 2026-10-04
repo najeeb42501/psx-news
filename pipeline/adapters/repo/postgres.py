@@ -219,6 +219,32 @@ class PostgresRepository:
                 call.model_dump(),
             )
 
+    # --- job runs -------------------------------------------------------------
+
+    def start_job_run(self, job: str, params: dict, triggered_by: str) -> int:
+        with self.conn.transaction():
+            row = self.conn.execute(
+                "insert into job_runs (job, params, triggered_by) values (%s, %s, %s) returning id",
+                (job, Jsonb(params), triggered_by),
+            ).fetchone()
+        assert row is not None
+        return row["id"]
+
+    def finish_job_run(self, run_id: int, status: str, summary: dict, log: str) -> None:
+        with self.conn.transaction():
+            self.conn.execute(
+                "update job_runs set status = %s, summary = %s, log = %s, finished_at = now() where id = %s",
+                (status, Jsonb(summary), log[-200_000:], run_id),
+            )
+
+    def running_job_run(self, stale_after_minutes: int = 90) -> int | None:
+        row = self.conn.execute(
+            "select id from job_runs where status = 'running' and started_at > now() - make_interval(mins => %s) "
+            "order by started_at desc limit 1",
+            (stale_after_minutes,),
+        ).fetchone()
+        return row["id"] if row else None
+
     # --- reads --------------------------------------------------------------
 
     def get_document(self, doc_id: int) -> Document | None:

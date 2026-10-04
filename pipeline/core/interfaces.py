@@ -104,6 +104,14 @@ class Repository(Protocol):
 
     def log_llm_call(self, call: LLMCall) -> None: ...
 
+    # --- job runs (admin Jobs & health page) ---
+
+    def start_job_run(self, job: str, params: dict, triggered_by: str) -> int: ...
+
+    def finish_job_run(self, run_id: int, status: str, summary: dict, log: str) -> None: ...
+
+    def running_job_run(self, stale_after_minutes: int = 90) -> int | None: ...  # id of a run still in progress
+
 
 @runtime_checkable
 class Publisher(Protocol):

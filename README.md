@@ -101,12 +101,14 @@ uv run python -m pipeline.jobs.process --max-ai 40  # allow more AI documents in
 **The steps** (all in vendor-free `pipeline/core/`):
 1. **Classify** (`classify.py`): title rules first; leftovers go to the AI in one batched call. The category sets the importance (0 = kept out of the main feed, 3 = post-worthy) and how the summary is written:
    - `template`: fixed EN/UR sentences from the title, for routine items (no AI).
-   - `dates`: the AI extracts dates only, and code writes the summary (board meetings, AGMs, book closures, briefings).
+   - `dates`: dates are read by rules first (`date_rules.py`), with the AI only when the wording is unusual. Code then writes the summary (board meetings, AGMs, book closures, briefings).
    - `llm`: the AI extracts facts, then writes the summary from the verified facts (results, dividends, bonus/right shares, material information, market news).
 2. **Extract** (`extract.py`, `facts.py`): the AI returns facts JSON in which every number and date carries the exact quote it came from. Code then checks each one:
    - The quote must be found in the document (tolerant of OCR spacing).
    - The number must be inside its quote.
-   - The sign comes from the source: brackets or "loss" mean negative.
+   - The quote must include the row label, and must not be from the previous-period column.
+   - The sign comes from the source: brackets or a minus on the number, or a pure "loss" label (not "Profit/(loss)").
+   - Key points need a quote too, and an insider "closed period" is never book closure.
    - Anything that fails is dropped. Dividend Rs/share is computed only when the face value is confirmed by a filing, never assumed.
 3. **Summarise** (`summarise.py`): EN + UR summaries, written only from the verified facts. Urdu is written directly using [glossary_ur.yaml](pipeline/config/glossary_ur.yaml).
 4. **Quality gate** (`quality.py`), on both languages:
@@ -116,10 +118,14 @@ uv run python -m pipeline.jobs.process --max-ai 40  # allow more AI documents in
 
    A failing summary gets one retry with the problems listed. If it still fails, it is stored as `needs_review`: not shown and not posted.
 
-**Models** are set by `LLM_CHAIN` in `.env` and tried in order (default: `gemini:gemini-3.6-flash, gemini:gemini-3.5-flash, groq:openai/gpt-oss-120b`).
+**Models** are set in `.env` and tried in order (defaults are in `pipeline/config/settings.py`):
+- `LLM_CHAIN` writes the summaries, which need good Urdu (Gemini Flash models first).
+- `LLM_EXTRACT_CHAIN` does fact extraction, which is English and verified by code, so smaller models are fine.
+
+Each model has its own free quota. A model that hits its daily quota is skipped for the rest of the run.
 - All go through one OpenAI-compatible client. To switch models or providers, change `LLM_CHAIN`.
 - Every call is logged in `llm_calls` with its token counts.
 - Each summary stores the model and prompt version.
-- **Prompts** are versioned files in `pipeline/config/prompts/`. To change one, add e.g. `summarise_v2.md` and update `PROMPT_VERSIONS` in `container.py`.
+- **Prompts** are versioned files in `pipeline/config/prompts/`. To change one, add e.g. `summarise_v4.md` and update `PROMPT_VERSIONS` in `container.py`.
 
 More sections (publishing, automation, runbook) are added as each phase is built.

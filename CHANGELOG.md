@@ -43,12 +43,42 @@
 
 ## Phase 3 – AI processing (2026-10-04)
 
-- OpenAI-compatible LLM adapter with a fallback chain from `LLM_CHAIN`: Gemini 3.6 Flash, then Gemini 3.5 Flash, then Groq gpt-oss-120b.
-  - It backs off once on rate limits, then moves to the next model.
-  - Every call is logged with tokens in a new `llm_calls` table (migration 004).
-- Classification: title rules built from real PSX titles cover about 94% of items; leftovers go to the AI in one batched call. The category sets importance and summary method (template / dates / llm).
-- Facts extraction: every number and date carries its source quote. Code verifies it against the document text, takes signs from the source, and drops what fails. Dividend Rs/share is computed only from a confirmed face value, which is learned from filings that state both % and Rs.
-- Summaries in EN + UR, written from verified facts only (fixed sentences for routine items). The Urdu glossary is in `config/glossary_ur.yaml`.
-- Quality gate: numbers check, context-aware banned advice/prediction phrases in both languages, length and sentence limits, Western digits only. One retry, then `needs_review`.
-- Per-run AI budget (`--max-ai`). If all models are down, AI items wait for the next run and template items still go through.
-- Versioned prompt files (`classify_v1`, `extract_v1`, `summarise_v1`), stored with every summary.
+- OpenAI-compatible LLM adapter with two fallback chains, each model with its own free quota:
+  - `LLM_CHAIN` writes summaries and needs good Urdu: Gemini 3.6/3.5 Flash, 3.1/3.5 Flash-Lite, then Groq gpt-oss-120b.
+  - `LLM_EXTRACT_CHAIN` extracts facts: Gemini Lite models, then Groq gpt-oss-120b, Qwen and gpt-oss-20b.
+  - Busy models get short back-offs. Overloaded (503) and daily-quota models are skipped. Every call is logged with tokens in `llm_calls` (migration 004).
+- Classification: title rules built from real PSX titles cover about 94% of items; leftovers go to the AI in one batched call. The category sets importance and summary method:
+  - `template`: fixed sentences from the title.
+  - `dates`: the AI extracts dates, and code writes the sentences.
+  - `llm`: the AI writes the summary from verified facts.
+- Facts extraction: every number, date and key point must carry an exact quote from the document, and code verifies it:
+  - The quote must be found (tolerant of OCR spacing) and must include the row label.
+  - The sign comes from brackets or a minus on the number, or a pure "loss" label, never from "Profit/(loss)".
+  - Previous-period column values are rejected.
+  - A "closed period" is never treated as book closure.
+  - Dividend Rs/share is computed only from a confirmed face value.
+- Summaries in EN + UR, written from verified facts only. Urdu glossary in `config/glossary_ur.yaml`.
+- Quality gate:
+  - Numbers must come from the facts or the title (per-share amounts exact, large amounts may be shown in million/billion).
+  - Context-aware banned advice/prediction phrases in both languages.
+  - Length and sentence limits, and Western digits only.
+  - No mixed English/Urdu words, and no "Rs" in Urdu.
+  - One retry, then `needs_review`.
+- Per-run AI budget (`--max-ai`). If AI is unavailable, items wait for the next run. After 24 h they get a title-based summary so the feed is never missing them.
+- `--reprocess <categories>` re-runs items after a prompt change.
+- Versioned prompts: `classify_v1`, `extract_v3`, `summarise_v3`. v1/v2 are kept because older summaries reference them.
+- Fixed after a manual review of 34 real filings:
+  - A "Profit/(loss)" label had flipped a profit into a loss (DIIL).
+  - A bare number was guessed as revenue (SHCI).
+  - An insider "closed period" had been reported as book closure (SPL, DAAG, MARI).
+  - Per-share amounts had been rounded.
+  - Urdu gender agreement in the fixed sentences.
+- Dates by rules first (`core/date_rules.py`): meeting date/time, book closure range and period are read from the fixed wording of PSX notices.
+  - The rules cover 45 of 55 real notices with 0 disagreements against the AI, and need no AI call.
+  - The AI is used only when the rules find nothing.
+- Groq pacing: waits up to 65 s for its per-minute token limit. Qwen and gpt-oss-20b were dropped from the default extraction chain (output limits, broken JSON).
+- Meeting times are kept only with a verified date and when found in the source. "Other figures" also need a row label and the current-period column.
+- Quality gate: digits inside names (KSE-100, G7, Q1, FY26) are not treated as amounts. Numbers inside verified key-point quotes are allowed. Urdu punctuation after an English word is fine.
+- Acceptance on real PSX filings of 2026-10-02:
+  - 34 results / dividend / board-meeting / rights / material-information / book-closure filings, 27 of them scanned. All 34 are published, with 0 failing the number check.
+  - Across all 156 documents: 155 published, 1 in review.

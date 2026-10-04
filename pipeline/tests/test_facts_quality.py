@@ -303,3 +303,49 @@ def test_one_day_book_closure_and_urdu_gender_and_time() -> None:
     s = summarise_dates("board_meeting", board, symbol="GUTM", name="Gulistan Textile Mills Limited", title="t")
     assert "at 11.30 A.M to consider" in s.en.body and ".." not in s.en.body
     assert "ختم ہونے والے سال" in s.ur.body
+
+
+def test_meeting_time_needs_verified_date_and_source() -> None:
+    text = "The AGM will be held on October 28, 2026 at 12:00 PM at the registered office."
+    no_date = Facts(meeting_kind="agm", meeting_time="12:00 PM")
+    assert verify(no_date, text).facts.meeting_time is None  # IML: time without a date was published
+    good = Facts(meeting_kind="agm", meeting_time="12:00 PM",
+                 meeting_date=DateFact(value=date(2026, 10, 28), quote="held on October 28, 2026"))
+    assert verify(good, text).facts.meeting_time == "12:00 PM"
+    invented = good.model_copy(update={"meeting_time": "3:00 PM"})
+    assert verify(invented, text).facts.meeting_time is None
+
+
+def test_other_figures_need_label_and_current_column() -> None:
+    from pipeline.core.facts import NamedFigure
+    text = "Total'assets 21,592,323,199 20,162,636,017\nShare capital 207,000,000"
+    facts = Facts(other_figures=[
+        NamedFigure(label="Total assets", value=21592323199, unit="Rupees", quote="Total'assets 21,592,323,199 20,162,636,017"),
+        NamedFigure(label="Total assets last year", value=20162636017, unit="Rupees", quote="Total'assets 21,592,323,199 20,162,636,017"),
+        NamedFigure(label="Net revenue", value=207000000, unit="Rupees", quote="Share capital 207,000,000"),
+    ])
+    kept = verify(facts, text).facts.other_figures
+    assert [f.label for f in kept] == ["Total assets"]
+
+
+@pytest.mark.parametrize("text", [
+    "The benchmark KSE-100 index closed lower.",
+    "G7 countries agreed to a release.",
+    "Exports grew in Q1 of FY26.",
+])
+def test_digits_in_names_are_not_amounts(text: str) -> None:
+    assert check_summary("en", "h", text, set()) == []
+
+
+def test_currency_glued_amounts_still_checked() -> None:
+    assert any("10 is not" in p for p in check_summary("en", "h", "A dividend of Rs10 per share.", set()))
+
+
+def test_numbers_in_verified_key_point_quotes_allowed() -> None:
+    from pipeline.core.facts import KeyPoint
+    facts = Facts(key_points=[KeyPoint(text="SPI rose in the week.", quote="for the week ending Oct 1, mainly due to")])
+    assert check_summary("en", "h", "For the week ending 1 Oct, prices rose.", allowed_numbers(facts, [])) == []
+
+
+def test_urdu_full_stop_after_english_name_is_fine() -> None:
+    assert check_summary("ur", "سرخی", "یہ کمپنی Islamic Republic۔", set()) == []

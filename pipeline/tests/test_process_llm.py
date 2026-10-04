@@ -137,8 +137,8 @@ def test_template_and_dates_paths_need_no_summary_model() -> None:
     by_cat = {i.category: i for i in repo.items.values()}
     en = {s.lang: s for s in repo.get_summaries(by_cat["agm"].id)}["en"]
     assert en.headline == "DGKC: annual general meeting on 21 Oct 2026"
-    assert en.model == "template; facts by fake:model-1"
-    assert [p for p, _ in llm.prompts] == ["extract"]
+    assert en.model == "template; facts by rules"  # fixed wording: dates read without AI
+    assert llm.prompts == []
 
 
 def test_ai_unavailable_defers_without_losing_documents() -> None:
@@ -238,3 +238,12 @@ def test_reprocess_marks_documents_new() -> None:
     assert repo.documents_to_process(10) == []
     assert repo.reset_for_reprocessing(["disclosure_of_interest"]) == 1
     assert len(repo.documents_to_process(10)) == 1
+
+
+def test_dates_fall_back_to_ai_when_rules_cannot_read_them() -> None:
+    odd = "The members will meet on the twenty-first day of October in the year 2026"
+    repo = _repo_with(("psx_companies", "Notice of Annual General Meeting", "DGKC", odd))
+    agm = Facts(meeting_kind="agm", meeting_date=DateFact(value=date(2026, 10, 21), quote="the year 2026 x"))
+    llm = ScriptedLLM({"extract": [agm, agm]})
+    process_documents(repo.documents_to_process(10), repo, llm, CFG)
+    assert [p for p, _ in llm.prompts][:1] == ["extract"]

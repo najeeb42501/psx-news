@@ -99,7 +99,7 @@ class FallbackLLM:
         self,
         clients: list[OpenAICompatClient],
         log: Callable[[LLMCall], None] | None = None,
-        max_wait: float = 30.0,
+        max_wait: float = 65.0,  # Groq's per-minute token limit resets within a minute
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         if not clients:

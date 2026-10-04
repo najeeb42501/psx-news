@@ -20,7 +20,8 @@ from pipeline.core.classify import (
     fallback_category,
     source_kind,
 )
-from pipeline.core.extract import Extraction, extract
+from pipeline.core.date_rules import RULES_VERSION, rule_dates, sufficient
+from pipeline.core.extract import Extraction, extract, verify
 from pipeline.core.facts import Facts
 from pipeline.core.interfaces import LLMProvider, LLMUnavailableError, Repository
 from pipeline.core.models import Document, Item, Summary
@@ -92,9 +93,20 @@ def _facts_json(facts: Facts, notes: list[str]) -> dict:
     return data
 
 
+def rule_extraction(doc: Document, cat: Category) -> Extraction | None:
+    """Dates read by rules (no AI), if they are enough for this category's summary."""
+    if cat.handling != "dates":
+        return None
+    text = doc.text or doc.title
+    ext = verify(rule_dates(text, cat.name, doc.title), text)
+    return ext if sufficient(ext.facts, cat.name) else None
+
+
 def process_one(doc: Document, cat: Category, repo: Repository, llm: LLMProvider, cfg: ProcessConfig,
-                extract_llm: LLMProvider | None = None, force_template: bool = False) -> str:
-    """Returns the review_status given to the item. force_template: no AI (used for stale items)."""
+                extract_llm: LLMProvider | None = None, force_template: bool = False,
+                rules: Extraction | None = None) -> str:
+    """Returns the review_status given to the item. force_template: no AI (used for stale items).
+    rules: dates already read by rules, so no AI call is needed."""
     extract_llm = extract_llm or llm
     assert doc.id is not None
     company = repo.get_company(doc.symbol) if doc.symbol else None
@@ -106,7 +118,12 @@ def process_one(doc: Document, cat: Category, repo: Repository, llm: LLMProvider
     summary: BilingualSummary
     model, version = "template", TEMPLATE_VERSION
 
-    if cat.handling == "template" or force_template:
+    if rules is not None:
+        facts, confidence = rules.facts, rules.confidence
+        summary = summarise_dates(cat.name, facts, symbol=doc.symbol, name=name, title=doc.title) \
+            or summarise_template(cat.name, symbol=doc.symbol, name=name, title=doc.title)
+        model, version = "template; facts by rules", f"{TEMPLATE_VERSION}+{RULES_VERSION}"
+    elif cat.handling == "template" or force_template:
         fallback = "other_corporate" if source_kind(doc.source_id) == "company" else "other_news"
         summary = summarise_template(cat.name if cat.name in TEMPLATES else fallback,
                                      symbol=doc.symbol, name=name, title=doc.title)
@@ -169,7 +186,8 @@ def process_documents(docs: list[Document], repo: Repository, llm: LLMProvider, 
     ai_down = False
     for doc in ordered:
         cat = categories[doc.id]
-        needs_ai = cat.handling != "template"
+        rules = rule_extraction(doc, cat)
+        needs_ai = cat.handling != "template" and rules is None
         force_template = False
         if needs_ai and (ai_down or ai_used >= cfg.max_ai_docs):
             if doc.first_seen_at and now - doc.first_seen_at > cfg.stale_after:
@@ -179,7 +197,7 @@ def process_documents(docs: list[Document], repo: Repository, llm: LLMProvider, 
                 stats.deferred += 1
                 continue
         try:
-            status = process_one(doc, cat, repo, llm, cfg, extract_llm, force_template)
+            status = process_one(doc, cat, repo, llm, cfg, extract_llm, force_template, rules)
         except LLMUnavailableError as e:
             ai_down = True
             stats.deferred += 1

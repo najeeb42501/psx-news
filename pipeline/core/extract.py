@@ -113,8 +113,14 @@ def _check_figure(name: str, fig: Figure, text_sq: str) -> tuple[Figure | None, 
         return None, f"{name}: value {fig.value} is not in its quote {fig.quote[:80]!r}"
     if name in LABELS and not re.search(LABELS[name], fig.quote, re.IGNORECASE):
         return None, f"{name}: quote {fig.quote[:80]!r} does not show what the number is (no row label)"
+    statement_row = name in STATEMENT_FIELDS
+    if name.startswith("other:"):
+        label_words = [w for w in re.findall(r"[a-z]{4,}", name[6:].lower())]
+        if label_words and not any(w in fig.quote.lower() for w in label_words):
+            return None, f"{name}: quote {fig.quote[:80]!r} does not show what the number is (no row label)"
+        statement_row = bool(re.search(r"rs|rupee|pkr|'000|‘000|thousand|million", (fig.unit or "").lower()))
     i = matches[0]
-    if name in STATEMENT_FIELDS and any(not _is_note_ref(abs(n)) for n in numbers[:i]):
+    if statement_row and any(not _is_note_ref(abs(n)) for n in numbers[:i]):
         return None, f"{name}: {fig.value} looks like the previous-period column in {fig.quote[:80]!r}"
     # Sign comes from the source, not the model: "(1.25)" or "-1.25" around the number itself,
     # or a label that only says loss. "Profit/(loss)" alone says nothing about the sign.
@@ -177,6 +183,10 @@ def verify(facts: Facts, text: str, face_value: float | None = None) -> Extracti
             out.dropped += 1
     if len(kept_points) != len(facts.key_points):
         updates["key_points"] = kept_points
+    # A meeting time is only kept with a verified meeting date, and must appear in the text.
+    if facts.meeting_time and ("meeting_date" in updates or not facts.meeting_date
+                               or squash(facts.meeting_time) not in text_sq):
+        updates["meeting_time"] = None
     clean = facts.model_copy(update=updates)
     out.facts, out.confirm_face_value = _dividend_rs(clean, face_value, out.problems)
     return out

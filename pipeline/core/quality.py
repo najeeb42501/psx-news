@@ -74,6 +74,8 @@ def allowed_numbers(facts: Facts, extra_sources: list[str]) -> set[float]:
         allowed |= {float(d.value.day), float(d.value.month), float(d.value.year), float(d.value.year % 100)}
     if facts.meeting_time:
         allowed |= bare_numbers(facts.meeting_time)
+    for kp in facts.key_points:  # numbers inside a verified quote are proven to be in the source
+        allowed |= bare_numbers(kp.quote)
     for src in extra_sources:
         allowed |= bare_numbers(src)
     return allowed
@@ -91,7 +93,7 @@ def check_summary(lang: str, headline: str, body: str, allowed: set[float]) -> l
         problems.append(f"{lang}: body has {len(sentences)} sentences (max {MAX_SENTENCES})")
     if NON_WESTERN_DIGITS.search(text):
         problems.append(f"{lang}: uses Urdu/Arabic digits; use Western digits 0-9")
-    for n in parse_numbers(text):
+    for n in parse_numbers(_NAME_WITH_DIGITS.sub(" ", text)):
         if not any(same(abs(n), a) for a in allowed):
             problems.append(f"{lang}: number {abs(n):g} is not in the verified facts")
     for pattern in _BANNED_EN_RE:
@@ -111,7 +113,13 @@ def check_summary(lang: str, headline: str, body: str, allowed: set[float]) -> l
 
 
 # A single word containing both Latin and Arabic-script letters, e.g. "Shaفی".
-_MIXED_SCRIPT = re.compile(r"[A-Za-z]+[؀-ۿ]+|[؀-ۿ]+[A-Za-z]+")
+# Letters only: Urdu punctuation such as "۔" or "،" right after an English name is fine.
+_UR_LETTER = "ء-يٱ-ۓەۺ-ۿ"
+_MIXED_SCRIPT = re.compile(rf"[A-Za-z]+[{_UR_LETTER}]+|[{_UR_LETTER}]+[A-Za-z]+")
+
+# Digits that are part of a name, not an amount: KSE-100, KMI-30, G7, Q1, H1, FY26.
+# Amounts glued to a currency (Rs10, PKR500, USD5) are still checked.
+_NAME_WITH_DIGITS = re.compile(r"\b(?!Rs|PKR|USD|US)[A-Z][A-Za-z]{0,3}-?\d{1,3}\b")
 
 
 def gate(summaries: dict[str, tuple[str, str]], facts: Facts, extra_sources: list[str]) -> GateResult:

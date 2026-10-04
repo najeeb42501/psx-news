@@ -349,3 +349,21 @@ def test_numbers_in_verified_key_point_quotes_allowed() -> None:
 
 def test_urdu_full_stop_after_english_name_is_fine() -> None:
     assert check_summary("ur", "سرخی", "یہ کمپنی Islamic Republic۔", set()) == []
+
+
+def test_fixed_urdu_sentences_use_modern_terms() -> None:
+    """Reviewer's style (2026-10-04): English financial terms in Urdu script, no formal Urdu."""
+    from pipeline.core.summarise import TEMPLATES
+    old = ["اجلاسِ عام", "بعد از ٹیکس", "فی حصہ", "نقد ڈویڈنڈ", "مالیاتی نتائج", "پاکستان اسٹاک ایکسچینج"]
+    texts = [t for tpl in TEMPLATES.values() for t in tpl[2:]]
+    facts = Facts(meeting_kind="board", period_kind="quarter",
+                  meeting_date=DateFact(value=date(2026, 10, 19), quote="x"),
+                  period_end=DateFact(value=date(2026, 9, 30), quote="x"),
+                  book_closure_from=DateFact(value=date(2026, 10, 12), quote="x"),
+                  book_closure_to=DateFact(value=date(2026, 10, 19), quote="x"))
+    s = summarise_dates("board_meeting", facts, symbol="EFERT", name="Engro Fertilizers Limited", title="t")
+    texts += [s.ur.headline, s.ur.body]
+    assert not [w for w in old for t in texts if w in t]
+    assert s.ur.body == ("Engro Fertilizers Limited (EFERT) کی بورڈ میٹنگ 19 اکتوبر 2026 کو ہوگی، جس میں "
+                         "30 ستمبر 2026 کو ختم ہونے والے کوارٹر کے فنانشل رزلٹس پر غور کیا جائے گا۔ "
+                         "بک کلوژر 12 اکتوبر 2026 سے 19 اکتوبر 2026 تک ہوگی۔")

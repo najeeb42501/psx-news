@@ -82,3 +82,4 @@
 - Acceptance on real PSX filings of 2026-10-02:
   - 34 results / dividend / board-meeting / rights / material-information / book-closure filings, 27 of them scanned. All 34 are published, with 0 failing the number check.
   - Across all 156 documents: 155 published, 1 in review.
+- Urdu style, from the reviewer's feedback: modern Urdu with English financial terms in Urdu script (ڈیویڈنڈ، آفٹر ٹیکس پرافٹ، ریونیو، بورڈ میٹنگ، بک کلوژر). Short codes stay in English letters (EPS, AGM, PSX, SECP), EPS is "فی شیئر آمدن", and company names stay in English. Changes: glossary rewritten, `summarise_v4` (which also enforces "21 Oct 2026" dates and no filler sentences), and `template_v2` fixed sentences. All 156 items were regenerated.

@@ -1,33 +1,40 @@
 # English -> Urdu terms used in every Urdu summary (AI prompts and fixed templates).
-# Reviewer: please correct any term that does not sound natural to Pakistani investors.
-dividend: ڈویڈنڈ
-cash dividend: نقد ڈویڈنڈ
-interim dividend: عبوری ڈویڈنڈ
-final dividend: حتمی ڈویڈنڈ
-earnings per share (EPS): فی حصہ آمدن
-profit after tax: بعد از ٹیکس منافع
-loss after tax: بعد از ٹیکس نقصان
-revenue / sales: آمدنی / فروخت
-financial results: مالیاتی نتائج
+# Style (decided by the reviewer, 2026-10-04): modern Urdu. Financial terms are the English
+# words written in Urdu script; short codes (EPS, AGM, PSX...) stay in English letters.
+# Avoid formal/literary Urdu such as "سالانہ اجلاسِ عام" or "بعد از ٹیکس منافع".
+dividend: ڈیویڈنڈ
+cash dividend: کیش ڈیویڈنڈ
+interim dividend: انٹرم ڈیویڈنڈ
+final dividend: فائنل ڈیویڈنڈ
+earnings per share (EPS): فی شیئر آمدن (EPS)
+loss per share: فی شیئر نقصان
+revenue: ریونیو
+sales: سیلز
+profit after tax: آفٹر ٹیکس پرافٹ
+loss after tax: آفٹر ٹیکس نقصان
+profit before tax: پری ٹیکس پرافٹ
+financial results: فنانشل رزلٹس
 book closure: بک کلوژر
 bonus shares: بونس شیئرز
 right shares: رائٹ شیئرز
-board meeting: بورڈ اجلاس
-annual general meeting (AGM): سالانہ اجلاسِ عام
-extraordinary general meeting (EOGM): غیر معمولی اجلاسِ عام
+board meeting: بورڈ میٹنگ
+annual general meeting: AGM
+extraordinary general meeting: EOGM
+corporate briefing: کارپوریٹ بریفنگ
 shareholders: شیئر ہولڈرز
 per share: فی شیئر
 face value: فیس ویلیو
 year ended: ختم ہونے والا سال
-quarter: سہ ماہی
-half year: ششماہی
+quarter: کوارٹر
+half year: ہاف ایئر
 nine months: نو ماہ
 material information: اہم معلومات
 policy rate: پالیسی ریٹ
 inflation: مہنگائی
 petrol price: پیٹرول کی قیمت
 budget: بجٹ
-State Bank of Pakistan: اسٹیٹ بینک آف پاکستان
-Pakistan Stock Exchange: پاکستان اسٹاک ایکسچینج
+State Bank of Pakistan: اسٹیٹ بینک (SBP)
+Pakistan Stock Exchange: PSX
+Securities and Exchange Commission of Pakistan: SECP
 million: ملین
 billion: ارب

@@ -24,7 +24,7 @@ PROMPTS_DIR = CONFIG_DIR / "prompts"
 GLOSSARY = CONFIG_DIR / "glossary_ur.yaml"
 # Bump a version by adding e.g. prompts/summarise_v2.md and changing it here; the
 # version is stored with every summary.
-PROMPT_VERSIONS = {"classify": "classify_v1", "extract": "extract_v3", "summarise": "summarise_v4"}
+PROMPT_VERSIONS = {"classify": "classify_v1", "extract": "extract_v3", "summarise": "summarise_v5"}
 
 
 def load_source_configs(path: Path = SOURCES_YAML) -> list[dict[str, Any]]:

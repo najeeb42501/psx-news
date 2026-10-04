@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { logout } from "@/app/admin/actions";
-import { isAdmin } from "@/lib/admin";
+import { SourceAlerts } from "@/components/admin/source-alerts";
+import { isAdmin, jobRuns, sourceAlerts } from "@/lib/admin";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const signedIn = await isAdmin();
+  const alerts = signedIn ? sourceAlerts(await jobRuns(25)) : [];
   return (
     <div className="space-y-4">
       {signedIn && (
@@ -27,6 +29,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           </form>
         </nav>
       )}
+      <SourceAlerts alerts={alerts} />
       {children}
     </div>
   );

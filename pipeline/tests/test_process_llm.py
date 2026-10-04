@@ -274,3 +274,37 @@ def test_job_runner_records_run_and_blocks_overlap(monkeypatch) -> None:
 
     repo.start_job_run("ingest", {}, "admin")  # still running
     assert run_job.main(["--job", "process"]) == 2
+
+
+def test_news_without_checkable_facts_uses_news_template_and_publishes() -> None:
+    """ProPakistani gold story (2026-10-04) got the company template ("The company has made an
+    announcement on PSX") and went to review."""
+    repo = _repo_with(("dawn_business", "Gold loses important level in Pakistan", None,
+                       "Gold prices in Pakistan sharply declined on Saturday."))
+    llm = ScriptedLLM({"classify": [{"categories": {"1": "macro"}}], "extract": [Facts(), Facts()]})
+    process_documents(repo.documents_to_process(10), repo, llm, CFG)
+    item = _item(repo)
+    sums = {s.lang: s for s in repo.get_summaries(item.id)}
+    assert item.review_status == "auto"
+    assert sums["en"].headline == "Gold loses important level in Pakistan"
+    assert "company" not in sums["en"].body.lower() and "PSX" not in sums["ur"].body
+
+
+def test_second_retry_gets_a_chance() -> None:
+    repo = _repo_with(("psx_companies", "Final Cash Dividend Announcement", "BWHL", BWHL_TEXT))
+    llm = ScriptedLLM({"extract": [DIVIDEND_FACTS], "summarise": [BAD_NUMBER, BAD_NUMBER, GOOD]})
+    process_documents(repo.documents_to_process(10), repo, llm, CFG)
+    assert _item(repo).review_status == "auto"
+    retry_prompt = [p for purpose, p in llm.prompts if purpose == "summarise"][2]
+    assert "Rs 12 per share" in retry_prompt and "same precision" in retry_prompt
+
+
+def test_summary_point_zero_is_tidied_before_saving() -> None:
+    repo = _repo_with(("psx_companies", "Final Cash Dividend Announcement", "BWHL", BWHL_TEXT))
+    padded = GOOD.model_copy(update={"en": LangSummary(headline="BWHL: final cash dividend of Rs 10.0 per share",
+                                                       body="Baluchistan Wheels paid Rs 10.00 per share (100.0%).")})
+    llm = ScriptedLLM({"extract": [DIVIDEND_FACTS], "summarise": [padded]})
+    process_documents(repo.documents_to_process(10), repo, llm, CFG)
+    en = next(s for s in repo.get_summaries(_item(repo).id) if s.lang == "en")
+    assert en.headline == "BWHL: final cash dividend of Rs 10 per share"
+    assert en.body == "Baluchistan Wheels paid Rs 10 per share (100%)."

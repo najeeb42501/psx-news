@@ -367,3 +367,38 @@ def test_fixed_urdu_sentences_use_modern_terms() -> None:
     assert s.ur.body == ("Engro Fertilizers Limited (EFERT) کی بورڈ میٹنگ 19 اکتوبر 2026 کو ہوگی، جس میں "
                          "30 ستمبر 2026 کو ختم ہونے والے کوارٹر کے فنانشل رزلٹس پر غور کیا جائے گا۔ "
                          "بک کلوژر 12 اکتوبر 2026 سے 19 اکتوبر 2026 تک ہوگی۔")
+
+
+# --- review queue cases from 2026-10-04 ---------------------------------------------
+
+def test_scaled_source_numbers_allowed() -> None:
+    """Tribune: "PSX below 170k" written as "below 170,000" is the same number."""
+    from pipeline.core.facts import KeyPoint
+    facts = Facts(key_points=[KeyPoint(text="The KSE-100 index fell below 170,000 points.",
+                                       quote="PSX below 170k on weak sentiment")])
+    allowed = allowed_numbers(facts, ["PSX below 170k on weak sentiment"])
+    assert check_summary("en", "KSE-100 below 170,000", "The KSE-100 index fell below 170,000 points.", allowed) == []
+    assert check_summary("en", "h", "Profit of Rs 1,500 million.", allowed_numbers(Facts(), ["profit Rs1.5bn"])) == []
+    assert check_summary("en", "h", "It closed at 169,500.", allowed)  # a different number is still caught
+
+
+def test_invented_day_is_caught_with_the_sentence() -> None:
+    """Tribune: source said "by Dec 2027"; the model wrote "31 December 2027"."""
+    from pipeline.core.facts import KeyPoint
+    facts = Facts(key_points=[KeyPoint(text="Nine distributors to be privatised by December 2027.",
+                                       quote="nine electricity distributors will be privatised by Dec 2027")])
+    problems = check_summary("en", "h", "Nine distributors will be sold by 31 December 2027.",
+                             allowed_numbers(facts, []))
+    assert problems == ["en: number 31 is not in the verified facts (in: “Nine distributors will be sold by 31 December 2027.”)"]
+    assert check_summary("en", "h", "Nine distributors will be sold by December 2027.", allowed_numbers(facts, [])) == []
+
+
+@pytest.mark.parametrize(("raw", "clean"), [
+    ("Profit of Rs 325.0 million.", "Profit of Rs 325 million."),
+    ("Revenue Rs 1,796.00 million, EPS Rs 2.0", "Revenue Rs 1,796 million, EPS Rs 2"),
+    ("EPS Rs 0.113 and 10.05%", "EPS Rs 0.113 and 10.05%"),
+    ("325.0 ملین روپے", "325 ملین روپے"),
+])
+def test_tidy_drops_needless_point_zero(raw: str, clean: str) -> None:
+    from pipeline.core.summarise import _tidy
+    assert _tidy(raw) == clean

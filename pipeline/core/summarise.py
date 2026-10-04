@@ -9,6 +9,7 @@ Fixed sentences carry no numbers of their own, so they cannot be wrong.
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 
 from pydantic import BaseModel, Field
@@ -70,6 +71,15 @@ def facts_for_prompt(facts: Facts) -> str:
     return json.dumps(strip(data), ensure_ascii=False, indent=1)
 
 
+FEEDBACK = """
+Your previous answer was rejected by our fact checker. Problems found:
+{problems}
+How to fix it: rewrite only what is wrong. Every number must appear in the facts above, written with
+the same precision: if the facts say "December 2027", write "December 2027", never a full date.
+"170k" may be written "170,000". If a number cannot be supported by the facts, leave it out.
+"""
+
+
 def build_summarise_prompt(template: str, *, company: str, category: str, facts: Facts,
                            glossary: dict[str, str], feedback: str = "") -> str:
     terms = "\n".join(f"  {en} = {ur}" for en, ur in glossary.items())
@@ -78,7 +88,7 @@ def build_summarise_prompt(template: str, *, company: str, category: str, facts:
         .replace("{{category}}", category)
         .replace("{{facts}}", facts_for_prompt(facts))
         .replace("{{glossary}}", terms)
-        .replace("{{feedback}}", f"\nYour previous answer was rejected; fix these problems:\n{feedback}\n" if feedback else "")
+        .replace("{{feedback}}", FEEDBACK.format(problems=feedback) if feedback else "")
     )
 
 
@@ -88,7 +98,23 @@ def summarise_llm(llm: LLMProvider, template: str, *, company: str, category: st
                                     glossary=glossary, feedback=feedback)
     result = llm.complete_json(prompt, BilingualSummary, purpose="summarise", document_id=document_id)
     assert isinstance(result, BilingualSummary)
-    return result
+    return tidy(result)
+
+
+# "325.0 million" -> "325 million", "Rs 2.00" -> "Rs 2": the same value, written as an editor would.
+_POINT_ZERO = re.compile(r"(?<![\d.])(\d[\d,]*)\.0+(?!\d)")
+
+
+def _tidy(text: str) -> str:
+    return re.sub(r"[ \t]{2,}", " ", _POINT_ZERO.sub(r"\1", text)).strip()
+
+
+def tidy(s: BilingualSummary) -> BilingualSummary:
+    """Mechanical copy-editing that never changes a value."""
+    return BilingualSummary(
+        en=LangSummary(headline=_tidy(s.en.headline), body=_tidy(s.en.body)),
+        ur=LangSummary(headline=_tidy(s.ur.headline), body=_tidy(s.ur.body)),
+    )
 
 
 # --- fixed-sentence summaries -------------------------------------------------

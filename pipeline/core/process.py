@@ -1,6 +1,6 @@
 """Process: classify -> extract facts -> summarise EN + UR -> quality gate -> store.
 
-Anything that fails the gate after one retry is stored as needs_review: not shown
+Anything that still fails the gate after the retries is stored as needs_review: not shown
 on the website and never posted, until an admin approves or fixes it.
 """
 from __future__ import annotations
@@ -34,6 +34,9 @@ from pipeline.core.summarise import (
     summarise_llm,
     summarise_template,
 )
+
+
+SUMMARY_RETRIES = 2  # rewrites after a failed fact check, each told what was wrong
 
 
 @dataclass
@@ -117,6 +120,8 @@ def process_one(doc: Document, cat: Category, repo: Repository, llm: LLMProvider
     facts, notes, confidence = Facts(), [], None
     summary: BilingualSummary
     model, version = "template", TEMPLATE_VERSION
+    is_company = source_kind(doc.source_id) == "company"
+    fallback = "other_corporate" if is_company else "other_news"
 
     if rules is not None:
         facts, confidence = rules.facts, rules.confidence
@@ -124,7 +129,6 @@ def process_one(doc: Document, cat: Category, repo: Repository, llm: LLMProvider
             or summarise_template(cat.name, symbol=doc.symbol, name=name, title=doc.title)
         model, version = "template; facts by rules", f"{TEMPLATE_VERSION}+{RULES_VERSION}"
     elif cat.handling == "template" or force_template:
-        fallback = "other_corporate" if source_kind(doc.source_id) == "company" else "other_news"
         summary = summarise_template(cat.name if cat.name in TEMPLATES else fallback,
                                      symbol=doc.symbol, name=name, title=doc.title)
     else:
@@ -142,20 +146,28 @@ def process_one(doc: Document, cat: Category, repo: Repository, llm: LLMProvider
                 or summarise_template(cat.name, symbol=doc.symbol, name=name, title=doc.title)
             model, version = f"template; facts by {facts_model}", f"{TEMPLATE_VERSION}+{cfg.versions['extract']}"
         elif not facts.figures() and not facts.key_points:
-            notes.append("no facts could be verified against the document")
-            summary = summarise_template("other_corporate", symbol=doc.symbol, name=name, title=doc.title)
+            # A filing we could not read needs a human. A news story is fine as its headline plus the link,
+            # the way an editor would share it.
+            if is_company:
+                notes.append("no facts could be verified against the document")
+            summary = summarise_template(fallback, symbol=doc.symbol, name=name, title=doc.title)
             model, version = f"template; facts by {facts_model}", f"{TEMPLATE_VERSION}+{cfg.versions['extract']}"
         else:
             sources = [doc.title, name or ""]
             summary = summarise_llm(llm, cfg.prompts["summarise"], company=label, category=cat.name, facts=facts,
                                     glossary=cfg.glossary, document_id=doc.id)
             check = gate(summary.as_pairs(), facts, sources)
-            if not check.ok:  # one retry, telling the model exactly what was wrong
-                summary = summarise_llm(llm, cfg.prompts["summarise"], company=label, category=cat.name,
-                                        facts=facts, glossary=cfg.glossary, document_id=doc.id,
-                                        feedback="\n".join(f"- {p}" for p in check.problems))
+            for _ in range(SUMMARY_RETRIES):  # retry, telling the model exactly what was wrong and where
+                if check.ok:
+                    break
+                try:
+                    summary = summarise_llm(llm, cfg.prompts["summarise"], company=label, category=cat.name,
+                                            facts=facts, glossary=cfg.glossary, document_id=doc.id,
+                                            feedback="\n".join(f"- {p}" for p in check.problems))
+                except LLMUnavailableError:
+                    break  # keep the last answer; it goes to review below
                 check = gate(summary.as_pairs(), facts, sources)
-                notes += check.problems
+            notes += check.problems
             model, version = llm.last_model, cfg.versions["summarise"]
 
     final = gate(summary.as_pairs(), facts, [doc.title, name or ""])

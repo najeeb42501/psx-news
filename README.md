@@ -116,7 +116,10 @@ uv run python -m pipeline.jobs.process --max-ai 40  # allow more AI documents in
    - No advice or prediction wording.
    - Headline ≤ 90 characters, body ≤ 3 sentences, and Western digits only.
 
-   A failing summary gets one retry with the problems listed. If it still fails, it is stored as `needs_review`: not shown and not posted.
+   - Numbers written with a scale in the source ("170k", "Rs1.5bn") may be written in full ("170,000", "Rs 1,500 million").
+
+   Before the check, a needless ".0" is removed ("Rs 325.0 million" → "Rs 325 million"). A failing summary gets up to 2 retries, each told what was wrong and in which sentence. If it still fails, it is stored as `needs_review`: not shown and not posted.
+   A news story with no checkable facts is published as its headline plus the link. A company filing with no checkable facts goes to review.
 
 **Models** are set in `.env` and tried in order (defaults are in `pipeline/config/settings.py`):
 - `LLM_CHAIN` writes the summaries, which need good Urdu (Gemini Flash models first).
@@ -126,7 +129,7 @@ Each model has its own free quota. A model that hits its daily quota is skipped 
 - All go through one OpenAI-compatible client. To switch models or providers, change `LLM_CHAIN`.
 - Every call is logged in `llm_calls` with its token counts.
 - Each summary stores the model and prompt version.
-- **Prompts** are versioned files in `pipeline/config/prompts/`. To change one, add e.g. `summarise_v4.md` and update `PROMPT_VERSIONS` in `container.py`.
+- **Prompts** are versioned files in `pipeline/config/prompts/`. To change one, add e.g. `summarise_v6.md` and update `PROMPT_VERSIONS` in `container.py`.
 
 ## Website (`web/`)
 
@@ -189,6 +192,7 @@ npm run build
   - **Running jobs:** buttons start the pipeline on this computer (needs `JOB_RUNNER=local` in `web/.env.local`): fetch new items, summarise new items, or both, optionally for one day or one source. Nothing runs on a schedule yet. The same runs work from the command line: `uv run python -m pipeline.jobs.run --job pipeline`.
   - **Recorded runs:** every run is stored in `job_runs` with its counts and log, and only one runs at a time.
   - **Health:** the PSX portal total vs stored (capture %), source status and errors, waiting work, and today's AI use per model.
+  - **Alerts:** a source that fails 3 runs in a row shows a red banner on every admin page until it works again.
 - **Review queue:** approve, edit (the same advice-wording checks apply) or hide items. Find any published item by symbol. Hidden items can be shown again.
 - **WhatsApp queue:** copy the EN/UR text, download the image, and mark as posted.
 

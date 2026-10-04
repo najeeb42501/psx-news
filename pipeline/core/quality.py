@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 
 from pipeline.core.facts import Facts
-from pipeline.core.numbers import NON_WESTERN_DIGITS, bare_numbers, parse_numbers, same, variants
+from pipeline.core.numbers import NON_WESTERN_DIGITS, bare_numbers, parse_numbers, same, source_numbers, variants
 
 HEADLINE_MAX = 90
 EXACT_FIELDS = ("eps", "cash_dividend_rs", "right_price_rs", "face_value_rs")
@@ -75,9 +75,9 @@ def allowed_numbers(facts: Facts, extra_sources: list[str]) -> set[float]:
     if facts.meeting_time:
         allowed |= bare_numbers(facts.meeting_time)
     for kp in facts.key_points:  # numbers inside a verified quote are proven to be in the source
-        allowed |= bare_numbers(kp.quote)
+        allowed |= source_numbers(kp.quote)
     for src in extra_sources:
-        allowed |= bare_numbers(src)
+        allowed |= source_numbers(src)
     return allowed
 
 
@@ -93,9 +93,13 @@ def check_summary(lang: str, headline: str, body: str, allowed: set[float]) -> l
         problems.append(f"{lang}: body has {len(sentences)} sentences (max {MAX_SENTENCES})")
     if NON_WESTERN_DIGITS.search(text):
         problems.append(f"{lang}: uses Urdu/Arabic digits; use Western digits 0-9")
-    for n in parse_numbers(_NAME_WITH_DIGITS.sub(" ", text)):
-        if not any(same(abs(n), a) for a in allowed):
-            problems.append(f"{lang}: number {abs(n):g} is not in the verified facts")
+    for sentence in re.split(r"(?<=[.!?۔])\s+|\n", text):  # report the sentence, so the fix is obvious
+        for n in parse_numbers(_NAME_WITH_DIGITS.sub(" ", sentence)):
+            if not any(same(abs(n), a) for a in allowed):
+                snippet = sentence.strip() if len(sentence.strip()) <= 120 else sentence.strip()[:119] + "…"
+                problem = f"{lang}: number {abs(n):g} is not in the verified facts (in: “{snippet}”)"
+                if problem not in problems:
+                    problems.append(problem)
     for pattern in _BANNED_EN_RE:
         m = pattern.search(text)
         if m:

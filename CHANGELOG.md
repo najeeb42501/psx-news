@@ -125,3 +125,16 @@
   - Live-updating run history with per-source counts and logs.
   - Capture check: the PSX portal's own total (now recorded on every fetch) vs documents stored, per source.
   - Source status and errors, work waiting, and AI use today per model (`admin_health()`, migration 007, admin-only).
+
+### Review-queue fixes and smarter summaries (2026-10-04)
+
+From the first 3 items held for review:
+- **Invented exact dates.** The source said "by Dec 2027" and the model wrote "31 December 2027", because the prompt asked for every date as "21 Oct 2026". New `summarise_v5` prompt: it is written as an editor's brief (decide what matters, keep the source's precision, check every number before answering). Month-only dates stay month-only, and short codes (IMF, FBR, NEPRA…) stay in English letters in Urdu.
+- **"170k" read as 170.** The number check now understands k / m / mn / bn / tr / crore / lakh in the source, so "170k" written as "170,000" passes. Other numbers are still caught.
+- **News sent to the company template.** A news story with no checkable figures used "The company has made an announcement on PSX". It now uses the news template (headline + link) and is published, because it contains no numbers. A company filing in this situation still goes to review.
+- **Clearer retries.** Problems now quote the sentence they were found in, and the retry is told how to fix them. A summary gets up to 2 retries (was 1) before going to review. This is also visible to the reviewer in `review_notes`.
+- **No needless ".0".** "Rs 325.0 million" becomes "Rs 325 million" before the check. The 20 published summaries that had this were tidied in place, with the same values.
+- Reprocessed the 3 items with the new code: all 3 now pass and are published automatically.
+
+Admin:
+- **Source failure alert.** When a source fails 3 runs in a row, a red banner shows on every admin page, with the last error. It clears after the source's next successful run.

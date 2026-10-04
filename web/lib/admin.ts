@@ -155,6 +155,35 @@ export async function jobRuns(limit = 20): Promise<JobRun[]> {
   return call<JobRun[]>(`job_runs?select=*&order=started_at.desc&limit=${limit}`);
 }
 
+/** A source could not be read at all (same rule as IngestResult.source_error in Python). */
+function sourceFailed(s: IngestSummary): boolean {
+  return s.fetched === 0 && s.errors.length > 0;
+}
+
+export const ALERT_AFTER_FAILURES = 3;
+
+export type SourceAlert = { source_id: string; failures: number; since: string; lastError: string };
+
+/** Sources that failed in each of their last ALERT_AFTER_FAILURES runs. runs: newest first. */
+export function sourceAlerts(runs: JobRun[]): SourceAlert[] {
+  const streaks = new Map<string, SourceAlert>();
+  const ended = new Set<string>(); // sources whose failure streak was broken by a success
+  for (const r of runs) {
+    for (const s of r.summary.ingest ?? []) {
+      if (ended.has(s.source_id)) continue;
+      if (!sourceFailed(s)) {
+        ended.add(s.source_id);
+        continue;
+      }
+      const cur = streaks.get(s.source_id) ?? { source_id: s.source_id, failures: 0, since: r.started_at, lastError: s.errors[0] };
+      cur.failures += 1;
+      cur.since = r.started_at;
+      streaks.set(s.source_id, cur);
+    }
+  }
+  return [...streaks.values()].filter((a) => a.failures >= ALERT_AFTER_FAILURES);
+}
+
 export type Health = {
   documents: Record<string, number>;
   items: Record<string, number>;

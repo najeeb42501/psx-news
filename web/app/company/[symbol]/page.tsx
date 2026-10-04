@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EventList } from "@/components/event-list";
-import { ItemList } from "@/components/item-card";
 import { FollowStockButton } from "@/components/follow-stock-button";
+import { Icon } from "@/components/icons";
+import { Chips, Feed } from "@/components/item-card";
+import { L } from "@/components/l";
 import { getCompany, getCompanyItems, getUpcoming } from "@/lib/data";
-import { factRows } from "@/lib/facts";
+import { factRows, keyChips } from "@/lib/facts";
 import { formatDate } from "@/lib/format";
 
 export const revalidate = 300;
@@ -22,79 +24,118 @@ export default async function CompanyPage({ params }: PageProps<"/company/[symbo
   if (!company && !items.length) notFound();
 
   const latestResults = items.find((i) => i.category === "results");
-  const dividends = items.filter((i) => i.facts && ("cash_dividend_rs" in i.facts || "cash_dividend_pct" in i.facts || "bonus_pct" in i.facts));
+  const dividends = items.filter((i) => "cash_dividend_rs" in i.facts || "cash_dividend_pct" in i.facts || "bonus_pct" in i.facts);
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">{symbol}</h1>
-          <p className="text-muted">{company?.name ?? symbol}</p>
-          {company?.sector && (
-            <Link href={`/?sector=${encodeURIComponent(company.sector)}`} className="text-sm text-brand underline">
-              {company.sector}
-            </Link>
-          )}
+    <div className="space-y-6">
+      <header className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">{symbol}</h1>
+            <p className="text-lg text-foreground/80">{company?.name ?? symbol}</p>
+            {company?.sector && (
+              <Link href={`/?sector=${encodeURIComponent(company.sector)}`} className="inline-block rounded-full bg-brand-soft px-3 py-0.5 text-xs">
+                {company.sector}
+              </Link>
+            )}
+          </div>
+          <FollowStockButton symbol={symbol} />
         </div>
-        <FollowStockButton symbol={symbol} />
+        <dl className="mt-4 grid grid-cols-3 gap-3 text-center text-sm">
+          <div className="rounded-xl bg-background p-2">
+            <dt className="text-xs text-muted">
+              <L en="Announcements" ur="اعلانات" />
+            </dt>
+            <dd className="text-lg font-bold">{items.length}</dd>
+          </div>
+          <div className="rounded-xl bg-background p-2">
+            <dt className="text-xs text-muted">
+              <L en="Upcoming" ur="آنے والے" />
+            </dt>
+            <dd className="text-lg font-bold">{events.length}</dd>
+          </div>
+          <div className="rounded-xl bg-background p-2">
+            <dt className="text-xs text-muted">
+              <L en="Latest" ur="تازہ ترین" />
+            </dt>
+            <dd className="text-sm font-bold">{items[0] ? formatDate(items[0].sort_time) : "–"}</dd>
+          </div>
+        </dl>
       </header>
 
-      {events.length > 0 && (
-        <section>
-          <h2 className="mb-2 font-bold">Upcoming: board meetings, AGMs, book closures</h2>
-          <EventList events={events} showCompany={false} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="min-w-0 space-y-2">
+          <h2 className="font-bold">
+            <L en="Announcements" ur="اعلانات" />
+          </h2>
+          <Feed items={items} empty={{ en: "No announcements stored for this company yet.", ur: "اس کمپنی کا ابھی کوئی اعلان نہیں۔" }} />
         </section>
-      )}
 
-      {latestResults && (
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="mb-1 font-bold">Latest results</h2>
-          <p className="mb-2 text-sm text-muted">
-            <Link href={`/item/${latestResults.id}`} className="underline">
-              {latestResults.headline_en}
-            </Link>
-          </p>
-          <table className="w-full text-sm">
-            <tbody>
-              {factRows(latestResults.facts)
-                .filter((r) => !["Board meeting", "AGM", "EOGM", "Book closure"].includes(r.en))
-                .slice(0, 6)
-                .map((r, i) => (
-                  <tr key={i} className="border-t border-border first:border-0">
-                    <th scope="row" className="py-1 pr-3 text-left font-normal text-muted">{r.en}</th>
-                    <td className="py-1 text-right font-semibold tabular-nums">{r.value}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+        <aside className="space-y-5">
+          {events.length > 0 && (
+            <section className="space-y-2">
+              <h2 className="flex items-center gap-2 text-sm font-bold">
+                <Icon name="calendar" className="size-4 text-brand" />
+                <L en="Coming up" ur="آنے والے" />
+              </h2>
+              <EventList events={events} compact />
+            </section>
+          )}
 
-      {dividends.length > 0 && (
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="mb-2 font-bold">Dividend history</h2>
-          <ul className="space-y-1 text-sm">
-            {dividends.map((d) => {
-              const row = factRows(d.facts).find((r) => /dividend|bonus/i.test(r.en));
-              return (
-                <li key={d.id} className="flex justify-between gap-2 border-t border-border pt-1 first:border-0">
-                  <Link href={`/item/${d.id}`} className="underline">
-                    {formatDate(d.sort_time)}
-                  </Link>
-                  <span className="text-right">
-                    {row?.en}: <b>{row?.value}</b>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+          {latestResults && (
+            <section className="space-y-2 rounded-2xl border border-border bg-card p-4">
+              <h2 className="flex items-center gap-2 text-sm font-bold">
+                <Icon name="chart" className="size-4 text-brand" />
+                <L en="Latest results" ur="تازہ ترین رزلٹس" />
+              </h2>
+              <Chips chips={keyChips(latestResults.facts)} />
+              <table className="w-full text-sm">
+                <tbody>
+                  {factRows(latestResults.facts)
+                    .filter((r) => !["Board meeting", "AGM", "EOGM", "Book closure", "Corporate briefing"].includes(r.en))
+                    .slice(0, 6)
+                    .map((r, i) => (
+                      <tr key={i} className="border-t border-border first:border-0">
+                        <th scope="row" className="py-1 pe-3 text-start font-normal text-muted">
+                          <span className="ui-en">{r.en}</span>
+                          <span className="ui-ur ur ur-tight">{r.ur || r.en}</span>
+                        </th>
+                        <td className="py-1 text-end font-semibold tabular-nums">{r.value}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+              <Link href={`/item/${latestResults.id}`} className="inline-flex items-center gap-1 text-sm text-brand">
+                <L en="Full details" ur="مکمل تفصیل" /> <Icon name="arrow-right" className="size-3.5" />
+              </Link>
+            </section>
+          )}
 
-      <section>
-        <h2 className="mb-2 font-bold">Announcements</h2>
-        <ItemList items={items} empty="No announcements stored for this company yet." />
-      </section>
+          {dividends.length > 0 && (
+            <section className="space-y-2 rounded-2xl border border-border bg-card p-4">
+              <h2 className="flex items-center gap-2 text-sm font-bold">
+                <Icon name="coins" className="size-4 text-brand" />
+                <L en="Dividend history" ur="ڈیویڈنڈ ہسٹری" />
+              </h2>
+              <ul className="space-y-1 text-sm">
+                {dividends.map((d) => {
+                  const row = factRows(d.facts).find((r) => /dividend|bonus/i.test(r.en));
+                  return (
+                    <li key={d.id} className="flex justify-between gap-2 border-t border-border pt-1 first:border-0">
+                      <Link href={`/item/${d.id}`} className="text-muted underline">
+                        {formatDate(d.sort_time)}
+                      </Link>
+                      <span className="text-right">
+                        {row?.en}: <b>{row?.value}</b>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

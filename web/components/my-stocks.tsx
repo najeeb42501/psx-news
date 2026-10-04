@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { L } from "@/components/l";
 import { useMyStocks } from "@/lib/client-store";
+import { stripSymbol } from "@/lib/format";
 
 type FeedItem = { id: number; symbol: string | null; headline_en: string | null; headline_ur: string | null };
 
@@ -33,11 +35,12 @@ export function MyStocksFeed() {
   if (!symbols.length) {
     return (
       <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted">
-        Follow the companies you care about:{" "}
         <Link href="/my-stocks" className="text-brand underline">
-          add your stocks
-        </Link>{" "}
-        and their news shows here first.
+          <L
+            en="Follow the companies you care about: add your stocks and their news shows here first."
+            ur="اپنی پسند کی کمپنیاں فالو کریں: اپنے شیئرز شامل کریں، ان کی خبریں یہاں سب سے پہلے نظر آئیں گی۔"
+          />
+        </Link>
       </p>
     );
   }
@@ -49,7 +52,7 @@ export function MyStocksFeed() {
           <span className="ui-ur ur ur-tight"> میرے شیئرز</span>
         </h2>
         <Link href="/my-stocks" className="text-sm text-brand underline">
-          Edit / see all
+          <L en="Edit / see all" ur="ترمیم / سب دیکھیں" />
         </Link>
       </div>
       {items.length ? (
@@ -58,14 +61,16 @@ export function MyStocksFeed() {
             <li key={it.id}>
               <Link href={`/item/${it.id}`} className="hover:underline">
                 <span className="font-semibold text-brand">{it.symbol}</span>{" "}
-                <span className="en-only">{it.headline_en}</span>
-                <span className="ur-only ur ur-tight block">{it.headline_ur}</span>
+                <span className="en-only">{stripSymbol(it.headline_en, it.symbol)}</span>
+                <span className="ur-only ur ur-tight block">{stripSymbol(it.headline_ur, it.symbol)}</span>
               </Link>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted">No recent news for {symbols.join(", ")}.</p>
+        <p className="text-sm text-muted">
+          <L en={`No recent news for ${symbols.join(", ")}.`} ur={`${symbols.join("، ")} کی کوئی تازہ خبر نہیں۔`} />
+        </p>
       )}
     </section>
   );

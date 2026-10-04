@@ -1,44 +1,67 @@
 // Item categories (set by the pipeline, see pipeline/core/classify.py) grouped into the
-// "type" filter users see.
+// "type" filter users see, each with an icon and a colour.
+import type { IconName } from "@/components/icons";
+
 export type TypeGroup = {
   key: string;
   en: string;
   ur: string;
+  icon: IconName;
+  // Tailwind classes: badge background/text and the card's left accent border.
+  badge: string;
+  accent: string;
   categories: string[];
 };
 
 export const TYPE_GROUPS: TypeGroup[] = [
-  { key: "results", en: "Results", ur: "فنانشل رزلٹس", categories: ["results"] },
   {
-    key: "dividends",
-    en: "Dividends & shares",
-    ur: "ڈیویڈنڈ اور شیئرز",
+    key: "results", en: "Results", ur: "رزلٹس", icon: "chart",
+    badge: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200", accent: "border-l-sky-500",
+    categories: ["results"],
+  },
+  {
+    key: "dividends", en: "Dividends & shares", ur: "ڈیویڈنڈ اور شیئرز", icon: "coins",
+    badge: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200", accent: "border-l-emerald-500",
     categories: ["dividend", "dividend_payment", "bonus", "right_shares"],
   },
   {
-    key: "meetings",
-    en: "Board meetings & AGMs",
-    ur: "بورڈ میٹنگ اور AGM",
+    key: "meetings", en: "Meetings & AGMs", ur: "میٹنگز اور AGM", icon: "calendar",
+    badge: "bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-200", accent: "border-l-violet-500",
     categories: ["board_meeting", "board_meeting_in_progress", "agm", "agm_extension", "corporate_briefing", "book_closure"],
   },
   {
-    key: "company",
-    en: "Company news",
-    ur: "کمپنی کی خبریں",
+    key: "company", en: "Company news", ur: "کمپنی کی خبریں", icon: "building",
+    badge: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200", accent: "border-l-amber-500",
     categories: [
       "material_info", "director_change", "buyback", "clarification", "other_corporate", "disclosure_of_interest",
       "annual_report", "progress_report", "resolutions", "revoked", "shariah",
     ],
   },
   {
-    key: "notices",
-    en: "PSX & SECP notices",
-    ur: "PSX اور SECP نوٹس",
+    key: "notices", en: "PSX & SECP notices", ur: "PSX اور SECP نوٹس", icon: "megaphone",
+    badge: "bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200", accent: "border-l-rose-500",
     categories: ["psx_unusual_movement", "psx_risk_warning", "psx_listing_action", "psx_trading_suspension", "psx_notice", "secp_notice"],
   },
-  { key: "policy", en: "Policy & economy", ur: "پالیسی اور معیشت", categories: ["macro_key", "macro"] },
-  { key: "sector", en: "Market & sector news", ur: "مارکیٹ اور سیکٹر", categories: ["sector"] },
+  {
+    key: "policy", en: "Economy", ur: "معیشت", icon: "globe",
+    badge: "bg-indigo-100 text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200", accent: "border-l-indigo-500",
+    categories: ["macro_key", "macro"],
+  },
+  {
+    key: "sector", en: "Market", ur: "مارکیٹ", icon: "trending",
+    badge: "bg-teal-100 text-teal-900 dark:bg-teal-950 dark:text-teal-200", accent: "border-l-teal-500",
+    categories: ["sector"],
+  },
 ];
+
+const FALLBACK: TypeGroup = {
+  key: "other", en: "Other", ur: "دیگر", icon: "file",
+  badge: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200", accent: "border-l-slate-400", categories: [],
+};
+
+export function groupOf(category: string): TypeGroup {
+  return TYPE_GROUPS.find((g) => g.categories.includes(category)) ?? FALLBACK;
+}
 
 const CATEGORY_LABEL: Record<string, { en: string; ur: string }> = {
   results: { en: "Results", ur: "رزلٹس" },
@@ -53,16 +76,18 @@ const CATEGORY_LABEL: Record<string, { en: string; ur: string }> = {
   agm_extension: { en: "AGM", ur: "AGM" },
   corporate_briefing: { en: "Briefing", ur: "بریفنگ" },
   book_closure: { en: "Book closure", ur: "بک کلوژر" },
+  psx_unusual_movement: { en: "Unusual movement", ur: "غیر معمولی تبدیلی" },
+  psx_risk_warning: { en: "Risk warning", ur: "رسک وارننگ" },
   macro_key: { en: "Policy", ur: "پالیسی" },
   macro: { en: "Economy", ur: "معیشت" },
   sector: { en: "Market", ur: "مارکیٹ" },
   fund_distribution: { en: "Fund", ur: "فنڈ" },
+  disclosure_of_interest: { en: "Insider dealing", ur: "ڈائریکٹر ڈیلنگ" },
+  annual_report: { en: "Annual report", ur: "سالانہ رپورٹ" },
 };
 
 export function categoryLabel(category: string): { en: string; ur: string } {
-  if (CATEGORY_LABEL[category]) return CATEGORY_LABEL[category];
-  const group = TYPE_GROUPS.find((g) => g.categories.includes(category));
-  return group ? { en: group.en, ur: group.ur } : { en: "Notice", ur: "نوٹس" };
+  return CATEGORY_LABEL[category] ?? { en: groupOf(category).en, ur: groupOf(category).ur };
 }
 
 export function groupCategories(key: string | undefined): string[] | null {

@@ -130,3 +130,32 @@ export function keyNumber(raw: Record<string, unknown>): string | null {
   return null;
 }
 
+
+export type Chip = { en: string; ur: string; value: string; tone: "pos" | "neg" | "neutral" };
+
+/** Up to 3 headline numbers for cards, from verified facts only. */
+export function keyChips(raw: Record<string, unknown>): Chip[] {
+  const f = raw as Facts;
+  const chips: Chip[] = [];
+  if (f.profit_after_tax) {
+    const loss = f.profit_after_tax.value < 0;
+    chips.push({ en: loss ? "Loss" : "Profit", ur: loss ? "نقصان" : "پرافٹ", value: money(f.profit_after_tax), tone: loss ? "neg" : "pos" });
+  }
+  if (f.eps) {
+    const loss = f.eps.value < 0;
+    chips.push({ en: loss ? "LPS" : "EPS", ur: loss ? "فی شیئر نقصان" : "EPS", value: `Rs ${formatNumber(Math.abs(f.eps.value), 4)}`, tone: loss ? "neg" : "pos" });
+  }
+  if (f.cash_dividend_rs || f.cash_dividend_pct) {
+    const value = f.cash_dividend_rs
+      ? `Rs ${formatNumber(f.cash_dividend_rs.value, 4)}/share`
+      : `${formatNumber(f.cash_dividend_pct!.value)}%`;
+    chips.push({ en: "Dividend", ur: "ڈیویڈنڈ", value, tone: "pos" });
+  }
+  if (f.bonus_pct) chips.push({ en: "Bonus", ur: "بونس", value: `${formatNumber(f.bonus_pct.value)}%`, tone: "pos" });
+  if (f.right_pct) chips.push({ en: "Right", ur: "رائٹ", value: `${formatNumber(f.right_pct.value)}%`, tone: "neutral" });
+  if (!chips.length && f.revenue) chips.push({ en: "Revenue", ur: "ریونیو", value: money(f.revenue), tone: "neutral" });
+  if (!chips.length && f.meeting_date) {
+    chips.push({ en: MEETING[f.meeting_kind ?? "board"].en, ur: MEETING[f.meeting_kind ?? "board"].ur, value: formatPlainDate(f.meeting_date.value), tone: "neutral" });
+  }
+  return chips.slice(0, 3);
+}

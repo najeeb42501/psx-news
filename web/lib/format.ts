@@ -38,3 +38,15 @@ export function formatPlainDateUr(ymd: string | null | undefined): string {
 export function formatNumber(value: number, maxDecimals = 2): string {
   return value.toLocaleString("en-US", { maximumFractionDigits: maxDecimals });
 }
+
+/** YYYY-MM-DD in Pakistan time, `offsetDays` from now (e.g. -1 = yesterday). */
+export function pktDayOffset(offsetDays: number): string {
+  return pktDay(new Date(Date.now() + offsetDays * 864e5));
+}
+
+/** "DGKC: AGM on 27 Oct" -> "AGM on 27 Oct" when the symbol is already shown beside it. */
+export function stripSymbol(headline: string | null | undefined, symbol: string | null | undefined): string {
+  if (!headline) return "";
+  if (!symbol) return headline;
+  return headline.startsWith(`${symbol}: `) ? headline.slice(symbol.length + 2) : headline;
+}

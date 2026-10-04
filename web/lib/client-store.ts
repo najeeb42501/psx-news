@@ -1,10 +1,12 @@
 "use client";
 
-// Browser-only preferences (no account needed): "My stocks" and the language choice.
-// Read with useSyncExternalStore so components stay in sync and render the server default first.
+// Browser-only preferences (no account needed): "My stocks", the language choice and the
+// time of the last visit (for "new" badges). Read with useSyncExternalStore so components stay
+// in sync and render the server default first.
 import { useMemo, useSyncExternalStore } from "react";
 
 const STOCKS_KEY = "myStocks";
+const SEEN_KEY = "myStocksSeenAt";
 const CHANGE = "sharekhabar:prefs";
 
 function subscribe(callback: () => void) {
@@ -24,6 +26,13 @@ function readRaw(key: string): string {
   }
 }
 
+function write(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {}
+  window.dispatchEvent(new Event(CHANGE));
+}
+
 function parseList(raw: string): string[] {
   try {
     const v = JSON.parse(raw || "[]");
@@ -40,14 +49,16 @@ export function useMyStocks(): string[] | null {
 }
 
 export function setMyStocks(symbols: string[]) {
-  try {
-    localStorage.setItem(STOCKS_KEY, JSON.stringify([...new Set(symbols)].slice(0, 50)));
-  } catch {}
-  window.dispatchEvent(new Event(CHANGE));
+  write(STOCKS_KEY, JSON.stringify([...new Set(symbols)].slice(0, 50)));
 }
 
-export function getMyStocks(): string[] {
-  return parseList(readRaw(STOCKS_KEY));
+/** When the user last looked at their stocks (ISO string), or "" for never. */
+export function useSeenAt(): string | null {
+  return useSyncExternalStore(subscribe, () => readRaw(SEEN_KEY), () => null);
+}
+
+export function markSeen() {
+  write(SEEN_KEY, new Date().toISOString());
 }
 
 export type Lang = "en" | "ur" | "both";
@@ -62,7 +73,10 @@ export function useLang(): Lang {
 }
 
 export function setLang(value: Lang) {
-  document.documentElement.dataset.lang = value;
+  const html = document.documentElement;
+  html.dataset.lang = value;
+  html.dir = value === "ur" ? "rtl" : "ltr"; // whole layout mirrors in Urdu mode
+  html.lang = value === "ur" ? "ur" : "en";
   try {
     localStorage.setItem("lang", value);
   } catch {}

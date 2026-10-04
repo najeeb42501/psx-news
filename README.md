@@ -151,12 +151,24 @@ npm run build
 | `NEXT_PUBLIC_WHATSAPP_CHANNEL_URL`, `NEXT_PUBLIC_FACEBOOK_PAGE_URL` | Optional, from Phase 5: show the Follow buttons |
 
 **Pages.**
-- `/`: the feed, with filters for company, sector, type and date, and "My stocks" first.
-- `/item/[id]`: the full summary, key numbers, source link and share buttons.
-- `/company/[symbol]`: announcements, latest results, dividend history and upcoming events.
+- `/` (feed):
+  - Highlights strip and "My stocks" first.
+  - Type chips, an "Important only" switch and more filters (symbol, sector, date).
+  - Grouped by day; card size follows importance (highlight / normal / one-line).
+  - On desktop, a side panel shows this week's events.
+- `/item/[id]`: key-number chips, full summary, key numbers table, original source, share buttons, and more from the same company.
+- `/company/[symbol]`: stats, announcements, upcoming events, latest results and dividend history.
+- `/results`: results tracker. Each company's latest results (revenue, profit, EPS, dividend) from verified facts, sortable and filterable.
 - `/today`: Today's 10 things.
-- `/upcoming`: board meetings, AGMs and book closures.
-- `/search`, `/my-stocks` (saved in the browser), `/about`.
+- `/upcoming`: calendar grouped by date, filterable by board meetings / AGMs / book closures / briefings.
+- `/my-stocks`: a dashboard of news and events for followed companies, with "new since last visit" badges. Saved in the browser.
+- `/search` and the header search (instant company suggestions), and `/about`.
+- **Installable (PWA):** `app/manifest.ts` and the app icons enable "Add to home screen".
+
+**Design.**
+- Mobile-first, with a bottom app bar on phones and top tabs plus a side panel on desktop.
+- Each type has its own colour and icon (`lib/categories.ts`), and dark mode follows the system.
+- In Urdu mode the whole layout mirrors right-to-left (`dir="rtl"`; spacing uses start/end classes).
 
 **Data.**
 - All database reads are in `web/lib/data.ts`, via the Supabase REST API with the publishable key, cached for 60 s.

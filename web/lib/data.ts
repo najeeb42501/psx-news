@@ -68,11 +68,18 @@ const nextDay = (ymd: string) => {
   return d.toISOString().slice(0, 10);
 };
 
-export type FeedFilters = { symbol?: string; sector?: string; type?: string; date?: string; page?: number };
+export type FeedFilters = {
+  symbol?: string;
+  sector?: string;
+  type?: string;
+  date?: string;
+  page?: number;
+  importantOnly?: boolean; // hide routine filings (importance 1)
+};
 export const PAGE_SIZE = 30;
 
 export async function getFeed(f: FeedFilters = {}): Promise<WebItem[]> {
-  const q = ["select=*", "importance=gte.1", "order=sort_time.desc,id.desc", `limit=${PAGE_SIZE}`];
+  const q = ["select=*", `importance=gte.${f.importantOnly ? 2 : 1}`, "order=sort_time.desc,id.desc", `limit=${PAGE_SIZE}`];
   if (f.page && f.page > 1) q.push(`offset=${(f.page - 1) * PAGE_SIZE}`);
   if (f.symbol) q.push(`symbol=eq.${enc(f.symbol.toUpperCase())}`);
   if (f.sector) q.push(`sector=eq.${enc(f.sector)}`);
@@ -130,7 +137,7 @@ export async function getToday(): Promise<{ day: string | null; items: WebItem[]
   return { day, items };
 }
 
-export async function getUpcoming(symbol?: string, days = 45): Promise<WebEvent[]> {
+export async function getUpcoming(symbol?: string, days = 45, kinds?: string[], symbols?: string[]): Promise<WebEvent[]> {
   const today = pktDay();
   const until = new Date(`${today}T12:00:00Z`);
   until.setUTCDate(until.getUTCDate() + days);
@@ -142,6 +149,8 @@ export async function getUpcoming(symbol?: string, days = 45): Promise<WebEvent[
     "limit=200",
   ];
   if (symbol) q.push(`symbol=eq.${enc(symbol.toUpperCase())}`);
+  if (symbols?.length) q.push(`symbol=${enc(inList(symbols.map((s) => s.toUpperCase())))}`);
+  if (kinds?.length) q.push(`kind=${enc(inList(kinds))}`);
   const rows = await get<WebEvent[]>(`web_events?${q.join("&")}`);
   // The same meeting is often announced more than once (notice, then results): show it once.
   const seen = new Set<string>();
@@ -159,4 +168,27 @@ export async function search(q: string, symbol?: string): Promise<WebItem[]> {
   const params = [`q=${enc(term)}`, "lim=40"];
   if (symbol) params.push(`sym=${enc(symbol)}`);
   return get<WebItem[]>(`rpc/web_search?${params.join("&")}`, 300);
+}
+
+/** Results, dividends and policy news of the latest day that has any. */
+export async function getHighlights(limit = 12): Promise<WebItem[]> {
+  const latest = await get<{ sort_time: string }[]>("web_items?select=sort_time&importance=gte.3&order=sort_time.desc&limit=1");
+  if (!latest.length) return [];
+  const day = pktDay(latest[0].sort_time);
+  return get<WebItem[]>(
+    `web_items?select=*&importance=gte.3&sort_time=gte.${enc(dayStart(day))}&sort_time=lt.${enc(dayStart(nextDay(day)))}` +
+      `&order=sort_time.desc&limit=${limit}`,
+  );
+}
+
+/** Latest financial results with their verified facts (results tracker). */
+export async function getResults(limit = 300): Promise<WebItem[]> {
+  return get<WebItem[]>(`web_items?select=*&category=eq.results&order=sort_time.desc&limit=${limit}`, 300);
+}
+
+/** Other recent items of the same company. */
+export async function getRelated(symbol: string, excludeId: number, limit = 6): Promise<WebItem[]> {
+  return get<WebItem[]>(
+    `web_items?select=*&symbol=eq.${enc(symbol.toUpperCase())}&id=neq.${excludeId}&importance=gte.1&order=sort_time.desc&limit=${limit}`,
+  );
 }

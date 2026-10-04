@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --header-h: 3.5rem; /* sticky day headers sit right under the header */
   --background: #f8fafc;
   --foreground: #0f172a;
   --muted: #64748b;
@@ -61,4 +62,18 @@ html[data-lang="ur"] .ui-en {
 }
 .ur-tight {
   line-height: 1.9;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --header-h: 6.25rem;
+  }
+}
+
+/* Horizontal scrollers (highlights strip, filter chips): no visible scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

@@ -98,3 +98,20 @@
   - WhatsApp queue: copy EN/UR text, download the image, mark as posted.
 - Migration `005`: `web_items.sort_time`, the `web_events` view and the `web_search()` function, all read-only for the public key.
 - Speed on a simulated mid-range phone over slow 4G (1.6 Mbps): content visible in 0.4–1.1 s. The first-ever visit fully loads in 3.2 s; later pages in about 0.6 s.
+
+### Phase 4 – UI/UX upgrade (2026-10-04)
+
+- New layout: a wide two-column desktop view with a side panel, an app-style bottom bar on phones, and header search with instant company suggestions.
+- The feed is grouped by day, and card size follows importance: results, dividends and policy news get big cards with key-number chips (profit/loss, EPS, dividend), while routine filings are one-line rows.
+- Features:
+  - Highlights strip; quick type chips, "Important only" and "More filters".
+  - New `/results` results tracker (sortable, sector filter, blanks where a figure was not verified).
+  - Calendar grouped by date with type filters.
+  - My stocks dashboard with events and "new since last visit".
+  - Related items on item pages and a stats header on company pages.
+  - Installable app (manifest + icons).
+- Full Urdu interface in Urdu mode: interface labels translated and the whole page mirrored right-to-left.
+- Accuracy crawl of the production build:
+  - All 156 item pages: 200 for published items, 404 for unpublished ones. Displayed EPS and dividends match the database, and the bilingual disclaimer is on every page.
+  - All 156 share cards and 104 company pages render.
+  - The feed shows exactly the 145 published items and never hidden ones, and the results tracker lists all 17 companies.

@@ -83,3 +83,18 @@
   - 34 results / dividend / board-meeting / rights / material-information / book-closure filings, 27 of them scanned. All 34 are published, with 0 failing the number check.
   - Across all 156 documents: 155 published, 1 in review.
 - Urdu style, from the reviewer's feedback: modern Urdu with English financial terms in Urdu script (ڈیویڈنڈ، آفٹر ٹیکس پرافٹ، ریونیو، بورڈ میٹنگ، بک کلوژر). Short codes stay in English letters (EPS, AGM, PSX, SECP), EPS is "فی شیئر آمدن", and company names stay in English. Changes: glossary rewritten, `summarise_v4` (which also enforces "21 Oct 2026" dates and no filler sentences), and `template_v2` fixed sentences. All 156 items were regenerated.
+
+## Phase 4 – Website (2026-10-04)
+
+- Pages:
+  - The feed, with company / sector / type / date filters and pagination. "My stocks" appears first.
+  - The item page: full EN/UR summary, key numbers table from verified facts, original source link, publish time in PKT, and share buttons.
+  - The company page: announcements, latest results, dividend history and upcoming events.
+  - Today's 10 things, Upcoming events (next 45 days), Search, My stocks and About.
+- English / اردو / Both toggle, applied before first paint. Noto Nastaliq Urdu, right to left. Interface labels stay English in "both" mode.
+- Share card PNG (`/api/og/item/[id]`) rendered with resvg, which shapes Nastaliq correctly (`next/og` fails on its font). It is also used as the link preview image.
+- Admin (`/admin`, `ADMIN_TOKEN`):
+  - Review queue: approve / edit / hide, find by symbol, show again. Edits are checked for advice wording, Urdu digits and headline length.
+  - WhatsApp queue: copy EN/UR text, download the image, mark as posted.
+- Migration `005`: `web_items.sort_time`, the `web_events` view and the `web_search()` function, all read-only for the public key.
+- Speed on a simulated mid-range phone over slow 4G (1.6 Mbps): content visible in 0.4–1.1 s. The first-ever visit fully loads in 3.2 s; later pages in about 0.6 s.

@@ -1,24 +1,64 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --brand: #0f766e;
+  --brand-soft: #ccfbf1;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --font-sans: var(--font-noto-sans), system-ui, sans-serif;
+  --font-urdu: var(--font-nastaliq), "Noto Nastaliq Urdu", serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0b1120;
+    --foreground: #e2e8f0;
+    --muted: #94a3b8;
+    --card: #111827;
+    --border: #1f2937;
+    --brand: #2dd4bf;
+    --brand-soft: #134e4a;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Language toggle: <html data-lang="en|ur|both">, set before first paint by an inline script.
+   Content (headlines, summaries): .en-only / .ur-only, both shown in "both" mode.
+   Interface labels (menu, badges, headings, dates): .ui-en / .ui-ur, English in "both" mode. */
+html[data-lang="en"] .ur-only,
+html[data-lang="ur"] .en-only,
+html[data-lang="en"] .ui-ur,
+html[data-lang="both"] .ui-ur,
+html[data-lang="ur"] .ui-en {
+  display: none !important;
+}
+
+/* Urdu text: right-to-left, Nastaliq needs generous line height. */
+.ur {
+  font-family: var(--font-urdu);
+  direction: rtl;
+  text-align: right;
+  line-height: 2.1;
+  unicode-bidi: plaintext;
+}
+.ur-tight {
+  line-height: 1.9;
 }

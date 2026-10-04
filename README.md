@@ -128,4 +128,52 @@ Each model has its own free quota. A model that hits its daily quota is skipped 
 - Each summary stores the model and prompt version.
 - **Prompts** are versioned files in `pipeline/config/prompts/`. To change one, add e.g. `summarise_v4.md` and update `PROMPT_VERSIONS` in `container.py`.
 
+## Website (`web/`)
+
+Next.js 16 (App Router, TypeScript, Tailwind), mobile-first, English / Urdu / both.
+
+```bash
+cd web
+npm install
+npm run dev      # http://localhost:3000   (needs web/.env.local, see below)
+npm run build
+```
+
+**Settings.** Put these in `web/.env.local` for local runs; on Vercel they go under Project → Settings → Environment Variables:
+
+| Name | What |
+|---|---|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_PUBLISHABLE_KEY` | Public key: the site reads only the read-only `web_*` views with it |
+| `SUPABASE_SECRET_KEY` | Server-side only: used by the admin area |
+| `ADMIN_TOKEN` | Password for `/admin` |
+| `SITE_URL` | Public address, e.g. `https://sharekhabar.vercel.app` (used in share links) |
+| `NEXT_PUBLIC_WHATSAPP_CHANNEL_URL`, `NEXT_PUBLIC_FACEBOOK_PAGE_URL` | Optional, from Phase 5: show the Follow buttons |
+
+**Pages.**
+- `/`: the feed, with filters for company, sector, type and date, and "My stocks" first.
+- `/item/[id]`: the full summary, key numbers, source link and share buttons.
+- `/company/[symbol]`: announcements, latest results, dividend history and upcoming events.
+- `/today`: Today's 10 things.
+- `/upcoming`: board meetings, AGMs and book closures.
+- `/search`, `/my-stocks` (saved in the browser), `/about`.
+
+**Data.**
+- All database reads are in `web/lib/data.ts`, via the Supabase REST API with the publishable key, cached for 60 s.
+- Migration `005` adds `web_events` and `web_search()`.
+
+**Language.**
+- `<html data-lang="en|ur|both">` is set before first paint from `localStorage`.
+- Content uses `.en-only` / `.ur-only`, and interface labels use `.ui-en` / `.ui-ur` (English in "both" mode).
+- Urdu uses Noto Nastaliq Urdu, right to left.
+
+**Share images.**
+- `/api/og/item/[id]` renders a 1200×630 PNG card: headline, key number, Urdu line, source, date and disclaimer.
+- It uses **resvg**, because `next/og` cannot shape Nastaliq. `lib/card.ts` places mixed English/Urdu runs right to left itself.
+- Fonts are in `web/assets/fonts`.
+
+**Admin** (`/admin`, protected by `ADMIN_TOKEN`; the cookie stores only a hash of it):
+- **Review queue:** approve, edit (the same advice-wording checks apply) or hide items. Find any published item by symbol. Hidden items can be shown again.
+- **WhatsApp queue:** copy the EN/UR text, download the image, and mark as posted.
+
 More sections (publishing, automation, runbook) are added as each phase is built.

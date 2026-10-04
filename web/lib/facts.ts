@@ -215,3 +215,14 @@ export function keyChips(raw: Record<string, unknown>): Chip[] {
   }
   return chips.slice(0, 3);
 }
+
+/** "Rs 34.3 million" -> "Rs 34.3m", "Rs 1.8 billion" -> "Rs 1.8bn": short enough for a row pill. */
+function compact(value: string): string {
+  return value.replace(/ million$/, "m").replace(/ billion$/, "bn");
+}
+
+/** The one number shown beside a news row ("Profit Rs 34.3m"), or null. */
+export function keyFigure(raw: Record<string, unknown>): Chip | null {
+  const chip = keyChips(raw)[0];
+  return chip ? { ...chip, value: compact(chip.value) } : null;
+}

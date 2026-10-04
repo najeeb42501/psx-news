@@ -186,3 +186,13 @@ Acceptance (re-run of the Phase 1 measurements):
 - Tests: 178 Python tests (23 new), web lint and types clean, 16 browser checks of sign-in, edits, throttle, Urdu, headers and rate limit.
 
 Rollback: `git switch main` (code). Migrations 008 and 009 only add a column, two tables and a new version of `admin_health()`, so main keeps working with them in place. Summaries rewritten in this phase are new rows; older versions are kept in `summaries`.
+
+## v1.1 Redesign – Step 1: design system (2026-10-05, branch `v1.1-redesign`)
+
+From the "ShareKhabar Premium UI Redesign" brief. Built on the Phase 2 branch.
+- **Tokens** in `web/app/globals.css` (Tailwind v4 theme): neutral palette, hairlines, one brand colour, green/red only for numbers; light and dark (follows the device, or the new theme toggle). Four colours from the brief were adjusted to pass WCAG AA on every surface: fg-secondary #5E5E63, fg-tertiary #6E6E73 (light), fg-tertiary #98989D and negative #FF6961 (dark).
+- **Type:** Inter (variable) for English and numbers, tabular figures; Noto Nastaliq Urdu at 17/34, never below 15px. Scale: display, headline, title, body, caption, eyebrow.
+- **Components** in `web/components/ui/`: one-row sticky header with text navigation, search (command palette: Ctrl/Cmd+K or "/"), language segmented control and theme toggle; phone tab bar; news row; featured card; symbol badge; meta line; key-figure pill and stat tile; section header; filter bar with a filters sheet; sortable data table that becomes a list on phones, with "—" for values a filing doesn't state; empty states with suggestions; skeletons; snackbar; footer with the bilingual disclaimer aligned in one column. Icons: Lucide, outline, 20px, 1.5 stroke.
+- **One date style:** "2 Oct" in lists, "Friday 2 October 2026, 3:45 pm" on item pages, "Today / Yesterday / Sat 3 Oct" day headers.
+- **/design** (admin only): every component and state with real items, for approval before the pages are rebuilt.
+- The Next.js development badge is turned off.

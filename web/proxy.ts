@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, readSession } from "@/lib/session";
 
-// 1. /admin pages: no valid signed session -> sign-in page. Every admin action also checks the
+// 1. /admin pages and the /design preview: no valid signed session -> sign-in page. Every admin action also checks the
 //    session and the admin list on the server (lib/admin.ts), so this is not the only protection.
 // 2. /api/*: a simple per-address rate limit, so one client can't hammer the database.
 //    It lives in this server's memory: on a host with several instances each counts separately,
@@ -41,4 +41,4 @@ export async function proxy(request: NextRequest) {
   return NextResponse.redirect(new URL("/admin/login", request.url));
 }
 
-export const config = { matcher: ["/admin/:path*", "/api/:path*"] };
+export const config = { matcher: ["/admin/:path*", "/api/:path*", "/design"] };

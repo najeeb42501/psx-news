@@ -1,16 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Nastaliq_Urdu, Noto_Sans } from "next/font/google";
+import { Inter, Noto_Nastaliq_Urdu } from "next/font/google";
 import Link from "next/link";
 import { FollowButtons } from "@/components/follow-buttons";
 import { HeaderSearch } from "@/components/header-search";
 import { Icon } from "@/components/icons";
 import { LangToggle } from "@/components/lang-toggle";
+import { Snackbar } from "@/components/ui/snackbar";
 import { BottomNav, TopNav } from "@/components/nav";
 import { BRAND, SITE_URL } from "@/lib/brand";
 import { DISCLAIMER_EN, DISCLAIMER_UR } from "@/lib/compliance";
 import "./globals.css";
 
-const sans = Noto_Sans({ subsets: ["latin"], variable: "--font-noto-sans", display: "swap" });
+// Inter (variable) for English and numbers.
+const sans = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 // Urdu font: not preloaded, so English-only visitors don't download it before first paint.
 const nastaliq = Noto_Nastaliq_Urdu({
   subsets: ["arabic"],
@@ -34,13 +36,13 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0f766e" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1120" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
 
-// Runs before first paint: applies the saved language so there is no flash.
-const LANG_SCRIPT = `try{var l=localStorage.getItem("lang");if(l==="en"||l==="ur"||l==="both"){var h=document.documentElement;h.dataset.lang=l;if(l==="ur"){h.dir="rtl";h.lang="ur"}}}catch(e){}`;
+// Runs before first paint: applies the saved language and theme so there is no flash.
+const LANG_SCRIPT = `try{var h=document.documentElement,l=localStorage.getItem("lang"),t=localStorage.getItem("theme");if(l==="en"||l==="ur"||l==="both"){h.dataset.lang=l;if(l==="ur"){h.dir="rtl";h.lang="ur"}}if(t==="light"||t==="dark")h.dataset.theme=t}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -49,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: LANG_SCRIPT }} />
       </head>
       <body className="flex min-h-dvh flex-col antialiased">
-        <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
+        <header data-old-chrome className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
           <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
             <Link href="/" className="flex shrink-0 items-baseline gap-2 font-bold text-brand">
               <span className="text-xl tracking-tight">{BRAND.name}</span>
@@ -70,9 +72,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-4 md:pb-8">{children}</main>
+        <main data-old-main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-4 md:pb-8">{children}</main>
 
-        <footer className="border-t border-border bg-card px-4 pb-24 pt-6 text-sm text-muted md:pb-6">
+        <footer data-old-chrome className="border-t border-border bg-card px-4 pb-24 pt-6 text-sm text-muted md:pb-6">
           <div className="mx-auto max-w-6xl space-y-3">
             <FollowButtons />
             <p>{DISCLAIMER_EN}</p>
@@ -91,7 +93,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </footer>
 
-        <BottomNav />
+        <div data-old-chrome>
+          <BottomNav />
+        </div>
+        <Snackbar />
       </body>
     </html>
   );

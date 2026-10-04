@@ -28,6 +28,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  devIndicators: false, // no Next.js "N" badge, even in development
   // resvg is a native module; keep it out of the bundle and ship the font files with the server code.
   serverExternalPackages: ["@resvg/resvg-js"],
   outputFileTracingIncludes: { "/**": ["./assets/fonts/**"] },

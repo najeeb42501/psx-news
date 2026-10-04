@@ -1,44 +1,177 @@
 @import "tailwindcss";
 
+/* ShareKhabar design system (v1.1 redesign). Calm and editorial: typography and white space make the
+   hierarchy, hairlines separate, colour is only for links/active/focus and factual up/down numbers.
+   Every colour, size and radius used by components comes from the tokens below. */
+
+/* Dark mode follows the phone/computer setting unless the visitor picks one with the theme toggle
+   (<html data-theme="light|dark">, set before first paint by an inline script in app/layout.tsx). */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(html:not([data-theme="light"]), html:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
 :root {
-  --header-h: 3.5rem; /* sticky day headers sit right under the header */
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --muted: #64748b;
-  --card: #ffffff;
-  --border: #e2e8f0;
+  --header-h: 4rem; /* sticky day headers sit right under the header */
+  /* Colour tokens, light. Four values differ from the brief to pass WCAG AA (4.5:1) on every surface:
+     fg-secondary #5E5E63 (was #6E6E73), fg-tertiary #6E6E73 (was #8E8E93). */
+  --background: #ffffff;
+  --surface: #f5f5f7;
+  --surface-raised: #ffffff;
+  --hairline: #e5e5ea;
+  --fg: #1d1d1f;
+  --fg-secondary: #5e5e63;
+  --fg-tertiary: #6e6e73;
   --brand: #0f766e;
-  --brand-soft: #ccfbf1;
+  --positive: #1a7f37;
+  --negative: #c62828;
+  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.08);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #000000;
+    --surface: #1c1c1e;
+    --surface-raised: #2c2c2e;
+    --hairline: #38383a;
+    --fg: #f5f5f7;
+    --fg-secondary: #a1a1a6;
+    --fg-tertiary: #98989d; /* was #8E8E93: 4.85:1 on raised cards */
+    --brand: #2dd4bf;
+    --positive: #30d158;
+    --negative: #ff6961; /* was #FF453A: 4.94:1 on raised cards */
+    --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --background: #000000;
+  --surface: #1c1c1e;
+  --surface-raised: #2c2c2e;
+  --hairline: #38383a;
+  --fg: #f5f5f7;
+  --fg-secondary: #a1a1a6;
+  --fg-tertiary: #98989d;
+  --brand: #2dd4bf;
+  --positive: #30d158;
+  --negative: #ff6961;
+  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-card: var(--card);
-  --color-border: var(--border);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-hairline: var(--hairline);
+  --color-fg: var(--fg);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-tertiary: var(--fg-tertiary);
   --color-brand: var(--brand);
-  --color-brand-soft: var(--brand-soft);
-  --font-sans: var(--font-noto-sans), system-ui, sans-serif;
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  /* Names used by pages not yet redesigned, mapped onto the new tokens. */
+  --color-foreground: var(--fg);
+  --color-muted: var(--fg-secondary);
+  --color-card: var(--surface-raised);
+  --color-border: var(--hairline);
+  --color-brand-soft: var(--surface);
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-urdu: var(--font-nastaliq), "Noto Nastaliq Urdu", serif;
+
+  /* Type scale: size / line height / tracking / weight */
+  --text-display: 2.5rem;
+  --text-display--line-height: 3rem;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 600;
+  --text-display-sm: 2rem;
+  --text-display-sm--line-height: 2.375rem;
+  --text-display-sm--letter-spacing: -0.02em;
+  --text-display-sm--font-weight: 600;
+  --text-headline: 1.75rem;
+  --text-headline--line-height: 2.125rem;
+  --text-headline--letter-spacing: -0.015em;
+  --text-headline--font-weight: 600;
+  --text-title: 1.0625rem;
+  --text-title--line-height: 1.5rem;
+  --text-title--font-weight: 600;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.375rem;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.125rem;
+  --text-caption--font-weight: 500;
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1rem;
+  --text-eyebrow--letter-spacing: 0.06em;
+  --text-eyebrow--font-weight: 600;
+
+  --radius-card: 12px;
+  --radius-control: 10px;
+  --shadow-pop: var(--shadow-pop);
+  --ease-quiet: cubic-bezier(0.2, 0, 0, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1120;
-    --foreground: #e2e8f0;
-    --muted: #94a3b8;
-    --card: #111827;
-    --border: #1f2937;
-    --brand: #2dd4bf;
-    --brand-soft: #134e4a;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
-
 body {
   background: var(--background);
-  color: var(--foreground);
+  color: var(--fg);
   font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01"; /* Inter: single-storey a, open digits */
+}
+
+/* Numbers line up everywhere. */
+.tabular,
+table,
+time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* One container and one reading column on every page, so page edges never jump. */
+@utility page-container {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 20px;
+  @media (min-width: 768px) {
+    padding-inline: 32px;
+  }
+}
+@utility reading-column {
+  width: 100%;
+  max-width: 680px;
+}
+@utility eyebrow {
+  font-size: var(--text-eyebrow);
+  line-height: var(--text-eyebrow--line-height);
+  letter-spacing: var(--text-eyebrow--letter-spacing);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Focus: one visible ring in the brand colour, only for keyboard users. */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
 
 /* Language toggle: <html data-lang="en|ur|both">, set before first paint by an inline script.
@@ -53,13 +186,14 @@ html[data-lang="ur"] .ui-en {
 }
 
 /* Urdu text: always right-to-left (even when it starts with an English name), isolated from the
-   surrounding layout. Nastaliq needs generous line height. */
+   surrounding layout. Nastaliq needs a tall line: 2.0. Never smaller than 15px. */
 .ur {
   font-family: var(--font-urdu);
   direction: rtl;
   text-align: right;
-  line-height: 2.1;
+  line-height: 2;
   unicode-bidi: isolate;
+  font-size: max(15px, 1em);
 }
 /* English names, codes and numbers inside Urdu (components/urdu-text.tsx): sans-serif, sized to sit
    with the Nastaliq letters. */
@@ -71,16 +205,44 @@ html[data-lang="ur"] .ui-en {
   line-height: 1.9;
 }
 
-@media (min-width: 768px) {
-  :root {
-    --header-h: 6.25rem;
-  }
-}
-
-/* Horizontal scrollers (highlights strip, filter chips): no visible scrollbar. */
+/* Horizontal scrollers: no visible scrollbar. */
 .no-scrollbar {
   scrollbar-width: none;
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Skeleton shimmer, calm and short. */
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+.skeleton {
+  background: color-mix(in srgb, var(--hairline) 70%, var(--surface));
+  border-radius: 6px;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+/* Dialogs (command palette, filter sheet): soft entrance, dimmed backdrop. */
+dialog.sheet::backdrop,
+dialog.palette::backdrop {
+  background: rgb(0 0 0 / 0.32);
+  backdrop-filter: blur(2px);
+}
+dialog.palette[open],
+dialog.sheet[open] {
+  animation: dialog-in 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Footer disclaimer: the Urdu line sits on the same edge as the English one on English pages. */
+html:not([dir="rtl"]) .disclaimer-ur {
+  text-align: left;
 }

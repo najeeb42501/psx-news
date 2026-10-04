@@ -82,3 +82,26 @@ export function setLang(value: Lang) {
   } catch {}
   window.dispatchEvent(new Event(CHANGE));
 }
+
+export type Theme = "system" | "light" | "dark";
+
+function readTheme(): Theme {
+  const t = document.documentElement.dataset.theme;
+  return t === "light" || t === "dark" ? t : "system";
+}
+
+export function useTheme(): Theme {
+  return useSyncExternalStore(subscribe, readTheme, () => "system");
+}
+
+/** "system" follows the device setting; light/dark override it (saved for the next visit). */
+export function setTheme(value: Theme) {
+  const html = document.documentElement;
+  if (value === "system") delete html.dataset.theme;
+  else html.dataset.theme = value;
+  try {
+    if (value === "system") localStorage.removeItem("theme");
+    else localStorage.setItem("theme", value);
+  } catch {}
+  window.dispatchEvent(new Event(CHANGE));
+}

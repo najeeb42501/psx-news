@@ -16,3 +16,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Local tool output (graphify knowledge graph)
+graphify-out/

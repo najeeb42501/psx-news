@@ -7,10 +7,9 @@ import { type Lang, type Theme, setLang, setTheme, useLang, useTheme } from "@/l
 const LANGS: { value: Lang; label: string; aria: string }[] = [
   { value: "en", label: "EN", aria: "English" },
   { value: "ur", label: "اردو", aria: "Urdu" },
-  { value: "both", label: "Both", aria: "English and Urdu" },
 ];
 
-/** EN · اردو · Both. Pill-shaped track; the chosen option sits on a raised knob. */
+/** EN · اردو. Pill-shaped track; the chosen option sits on a raised knob. */
 export function LanguageSwitch({ compact = false }: { compact?: boolean }) {
   const lang = useLang();
   return (

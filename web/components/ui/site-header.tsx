@@ -15,7 +15,7 @@ export const NAV = [
   { href: "/", en: "Home", ur: "ہوم" },
   { href: "/today", en: "Today", ur: "آج" },
   { href: "/results", en: "Results", ur: "رزلٹس" },
-  { href: "/upcoming", en: "Calendar", ur: "کیلنڈر" },
+  { href: "/calendar", en: "Calendar", ur: "کیلنڈر" },
   { href: "/my-stocks", en: "My stocks", ur: "میرے شیئرز" },
 ];
 

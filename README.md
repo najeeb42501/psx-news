@@ -178,9 +178,9 @@ npm run build
   - On desktop, a side panel shows this week's events.
 - `/item/[id]`: key-number chips, full summary, key numbers table, original source, share buttons, and more from the same company.
 - `/company/[symbol]`: stats, announcements, upcoming events, latest results and dividend history.
-- `/results`: results tracker. Each company's latest results (revenue, profit, EPS, dividend) from verified facts, sortable and filterable.
-- `/today`: Today's 10 things.
-- `/upcoming`: calendar grouped by date, filterable by board meetings / AGMs / book closures / briefings.
+- `/results`: results tracker. Each company's latest results (revenue, profit, EPS, dividend) from verified facts, sortable, with search, sector and period filters.
+- `/today`: the 10 most important items of the last trading day, with the day in numbers and what's coming up.
+- `/calendar`: events grouped by day in time order, with type tabs, an All companies / My stocks switch and a month view. `/upcoming` redirects here.
 - `/my-stocks`: a dashboard of news and events for followed companies, with "new since last visit" badges. Saved in the browser.
 - `/search` and the header search (instant company suggestions), and `/about`.
 - **Installable (PWA):** `app/manifest.ts` and the app icons enable "Add to home screen".

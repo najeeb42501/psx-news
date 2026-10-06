@@ -191,7 +191,7 @@ export default async function ItemPage({ params }: PageProps<"/item/[id]">) {
                 <p className="tabular text-caption text-fg-tertiary">
                   <span className="ui-en">{formatPlainDate(n.date)}</span>
                   <span className="ui-ur ur ur-tight !leading-normal">{formatPlainDateUr(n.date)}</span>
-                  {n.detail && <span> · {n.detail}</span>}
+                  {n.detail && <span> · <bdi dir="ltr">{n.detail}</bdi></span>}
                 </p>
                 <p className="text-body font-medium">
                   <T en={n.en} ur={n.ur} />

@@ -61,11 +61,11 @@ export function markSeen() {
   write(SEEN_KEY, new Date().toISOString());
 }
 
-export type Lang = "en" | "ur" | "both";
+export type Lang = "en" | "ur"; // English or Urdu (the "Both" mode was removed on 2026-10-06)
 
 function readLang(): Lang {
   const v = document.documentElement.dataset.lang;
-  return v === "ur" || v === "both" ? v : "en";
+  return v === "ur" ? "ur" : "en";
 }
 
 export function useLang(): Lang {

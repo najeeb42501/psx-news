@@ -38,7 +38,7 @@ export const viewport: Viewport = {
 };
 
 // Runs before first paint: applies the saved language and theme so there is no flash.
-const LANG_SCRIPT = `try{var h=document.documentElement,l=localStorage.getItem("lang"),t=localStorage.getItem("theme");if(l==="en"||l==="ur"||l==="both"){h.dataset.lang=l;if(l==="ur"){h.dir="rtl";h.lang="ur"}}if(t==="light"||t==="dark")h.dataset.theme=t;if(localStorage.getItem("visited"))h.dataset.returning="1"}catch(e){}`;
+const LANG_SCRIPT = `try{var h=document.documentElement,l=localStorage.getItem("lang"),t=localStorage.getItem("theme");if(l==="ur"){h.dataset.lang="ur";h.dir="rtl";h.lang="ur"}if(t==="light"||t==="dark")h.dataset.theme=t;if(localStorage.getItem("visited"))h.dataset.returning="1"}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

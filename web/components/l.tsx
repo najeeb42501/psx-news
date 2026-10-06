@@ -1,4 +1,4 @@
-// Bilingual interface label: English normally, Urdu in Urdu mode (English in "both" mode).
+// Bilingual interface label: English normally, Urdu in Urdu mode.
 export function L({ en, ur, className = "" }: { en: string; ur: string; className?: string }) {
   return (
     <>

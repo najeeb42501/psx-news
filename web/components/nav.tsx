@@ -9,7 +9,7 @@ export const NAV: { href: string; en: string; ur: string; icon: IconName }[] = [
   { href: "/", en: "Feed", ur: "خبریں", icon: "home" },
   { href: "/today", en: "Today", ur: "آج", icon: "today" },
   { href: "/results", en: "Results", ur: "رزلٹس", icon: "table" },
-  { href: "/upcoming", en: "Calendar", ur: "کیلنڈر", icon: "calendar" },
+  { href: "/calendar", en: "Calendar", ur: "کیلنڈر", icon: "calendar" },
   { href: "/my-stocks", en: "My stocks", ur: "میرے شیئرز", icon: "star" },
 ];
 

@@ -13,7 +13,7 @@ const PAGES: Entry[] = [
   { key: "p-home", label: "Home", hint: "Today's market news", href: "/", kind: "page" },
   { key: "p-today", label: "Today", hint: "10 things from the last trading day", href: "/today", kind: "page" },
   { key: "p-results", label: "Results", hint: "Every company's latest results", href: "/results", kind: "page" },
-  { key: "p-calendar", label: "Calendar", hint: "Board meetings, AGMs, book closures", href: "/upcoming", kind: "page" },
+  { key: "p-calendar", label: "Calendar", hint: "Board meetings, AGMs, book closures", href: "/calendar", kind: "page" },
   { key: "p-my", label: "My stocks", hint: "News for the companies you follow", href: "/my-stocks", kind: "page" },
   { key: "p-about", label: "About ShareKhabar", hint: "Sources and how it works", href: "/about", kind: "page" },
 ];

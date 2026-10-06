@@ -14,7 +14,8 @@ export type Column = {
   mobile?: boolean; // shown in the phone list
   hideBelow?: "lg"; // hidden on narrower screens instead of squeezing
 };
-export type Cell = { text: string | null; sort?: number | string | null; tone?: "pos" | "neg"; sub?: string };
+/** tone: a change (shown with ▲/▼ and colour); color: a value that is itself negative, e.g. a loss. */
+export type Cell = { text: string | null; sort?: number | string | null; tone?: "pos" | "neg"; color?: "neg"; sub?: string; title?: string };
 export type Row = { key: string; href?: string; cells: Record<string, Cell> };
 
 const MISSING_TIP = "Not stated in the filing";
@@ -27,9 +28,9 @@ function Value({ cell }: { cell: Cell | undefined }) {
       </span>
     );
   }
-  const tone = cell.tone === "pos" ? "text-positive" : cell.tone === "neg" ? "text-negative" : "";
+  const tone = cell.tone === "pos" ? "text-positive" : cell.tone === "neg" || cell.color === "neg" ? "text-negative" : "";
   return (
-    <span className={tone}>
+    <span className={tone} title={cell.title}>
       {cell.tone && <span aria-hidden>{cell.tone === "pos" ? "▲ " : "▼ "}</span>}
       {cell.text}
       {cell.sub && <span className="block text-caption font-normal text-fg-tertiary">{cell.sub}</span>}

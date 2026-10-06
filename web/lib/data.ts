@@ -136,16 +136,20 @@ export async function getSectors(): Promise<string[]> {
   return [...new Set(companies.map((c) => c.sector).filter((s): s is string => !!s))].sort();
 }
 
-/** "Today's 10 things": the most important items of the latest day that has any (weekends show Friday). */
-export async function getToday(): Promise<{ day: string | null; items: WebItem[] }> {
-  const latest = await get<{ sort_time: string }[]>("web_items?select=sort_time&importance=gte.1&order=sort_time.desc&limit=1");
-  if (!latest.length) return { day: null, items: [] };
-  const day = pktDay(latest[0].sort_time);
-  const items = await get<WebItem[]>(
-    `web_items?select=*&importance=gte.1&sort_time=gte.${enc(dayStart(day))}&sort_time=lt.${enc(dayStart(nextDay(day)))}` +
-      "&order=importance.desc,sort_time.desc&limit=10",
+/** "Today's 10 things": the most important items of the last trading day. The day comes from the latest
+ *  PSX company filing (companies only file on trading days), so weekend news never relabels Sunday as
+ *  "the last market day". */
+export async function getToday(limit = 10): Promise<{ day: string | null; items: WebItem[]; all: WebItem[] }> {
+  const latest = await get<{ sort_time: string }[]>(
+    "web_items?select=sort_time&source_id=eq.psx_companies&order=sort_time.desc&limit=1",
   );
-  return { day, items };
+  if (!latest.length) return { day: null, items: [], all: [] };
+  const day = pktDay(latest[0].sort_time);
+  const all = await get<WebItem[]>(
+    `web_items?select=*&importance=gte.1&sort_time=gte.${enc(dayStart(day))}&sort_time=lt.${enc(dayStart(nextDay(day)))}` +
+      "&order=importance.desc,sort_time.desc&limit=200",
+  );
+  return { day, items: all.slice(0, limit), all };
 }
 
 export async function getUpcoming(symbol?: string, days = 45, kinds?: string[], symbols?: string[]): Promise<WebEvent[]> {

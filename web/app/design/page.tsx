@@ -381,7 +381,7 @@ export default async function DesignPage() {
               <EmptyState
                 icon={Inbox}
                 text={{ en: "No company announcements yet today. The calendar shows what's coming up.", ur: "آج ابھی کوئی اعلان نہیں آیا۔" }}
-                action={{ href: "/upcoming", label: { en: "Open the calendar", ur: "کیلنڈر کھولیں" } }}
+                action={{ href: "/calendar", label: { en: "Open the calendar", ur: "کیلنڈر کھولیں" } }}
               />
             </div>
             <div>

@@ -5,7 +5,6 @@ import { type Lang, setLang, useLang } from "@/lib/client-store";
 const OPTIONS: { value: Lang; label: string }[] = [
   { value: "en", label: "EN" },
   { value: "ur", label: "اردو" },
-  { value: "both", label: "Both" },
 ];
 
 export function LangToggle() {

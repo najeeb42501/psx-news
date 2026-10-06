@@ -207,3 +207,20 @@ Following the updated brief (visual add-on and new home page).
 - **New pages:** `/latest` (the filterable feed moved off Home) and `/sector/[slug]` (10 sectors).
 - Meeting times normalised ("3:00 pm"); PSX open/closed from regular trading hours (public holidays not known yet).
 - Lighthouse mobile: Home 82 / item 84 performance, accessibility 98 / 100, layout shift 0. Load time (LCP ~4 s) is the performance phase's job.
+
+## v1.1 Redesign – Today, Calendar and Results (2026-10-07, branch `v1.1-redesign`)
+
+- **Language:** the "Both" mode is removed. The switch is now English | اردو only.
+- **Today** rebuilt as a numbered list of the 10 most important items. It always uses the last trading day, so a weekend never shows an empty page. Each item has a cover, a short summary and the key figure. A side panel shows the day in numbers and the next six events, and a link opens all of that day's updates.
+- **Calendar** (`/calendar`, replacing `/upcoming`, which now redirects there):
+  - tabs by event type with counts, and an All companies / My stocks switch;
+  - events grouped under day headings ("Today", "Tomorrow"), in time order within each day, with book closures first;
+  - a month calendar whose marked days jump to that day's events.
+- **Results:**
+  - one row per company: period, revenue, profit after tax, EPS, cash dividend and announcement date;
+  - search, sector and period filters, plus counts of companies, profits, losses and dividends;
+  - losses shown in red with a minus sign;
+  - the "vs last year" column appears only once a filing states both years.
+- **Times:**
+  - a meeting time stated without am/pm is read as office hours (8–11 am, 12–7 pm);
+  - times and English company names keep their direction on Urdu pages.

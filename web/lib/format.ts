@@ -108,5 +108,15 @@ export function formatClock(raw: string | null | undefined): string {
     h = h % 12 || 12;
     return `${h}:${min} ${pm ? "pm" : "am"}`;
   }
-  return suffix ? `${h}:${min} ${suffix}` : `${h}:${min}`;
+  if (suffix) return `${h}:${min} ${suffix}`;
+  // No am/pm and a 12-hour value: company meetings run in office hours, so 8–11 is morning.
+  if (h === 0) return `12:${min} am`;
+  return `${h}:${min} ${h >= 8 && h <= 11 ? "am" : "pm"}`;
+}
+
+/** Minutes after midnight of a meeting time, for ordering a day's events; null when there is none. */
+export function clockMinutes(raw: string | null | undefined): number | null {
+  const m = formatClock(raw).match(/^(\d{1,2}):(\d{2}) (am|pm)$/);
+  if (!m) return null;
+  return ((Number(m[1]) % 12) + (m[3] === "pm" ? 12 : 0)) * 60 + Number(m[2]);
 }

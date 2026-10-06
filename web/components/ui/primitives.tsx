@@ -14,7 +14,7 @@ export function Container({ children, className = "" }: { children: ReactNode; c
   return <div className={`page-container ${className}`}>{children}</div>;
 }
 
-/** Bilingual interface label: English normally, Urdu in Urdu mode (English in "both" mode). */
+/** Bilingual interface label: English normally, Urdu in Urdu mode . */
 export function T({ en, ur }: { en: string; ur: string }) {
   return (
     <>

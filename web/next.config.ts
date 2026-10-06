@@ -32,6 +32,10 @@ const nextConfig: NextConfig = {
   // resvg is a native module; keep it out of the bundle and ship the font files with the server code.
   serverExternalPackages: ["@resvg/resvg-js"],
   outputFileTracingIncludes: { "/**": ["./assets/fonts/**"] },
+  async redirects() {
+    // The calendar moved from /upcoming (query strings such as ?kind=board are kept).
+    return [{ source: "/upcoming", destination: "/calendar", permanent: true }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

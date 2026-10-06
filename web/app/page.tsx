@@ -75,7 +75,7 @@ function EventRow({ e }: { e: WebEvent }) {
   return (
     <li>
       <Link href={`/item/${e.item_id}`} className="flex cursor-pointer items-center gap-3 border-b border-hairline py-3 hover:bg-surface md:-mx-3 md:px-3">
-        <span className="tabular w-20 shrink-0 text-caption text-fg-tertiary">{formatClock(e.event_time) || "—"}</span>
+        <span className="tabular w-20 shrink-0 text-caption text-fg-tertiary">{e.event_time ? <bdi dir="ltr">{formatClock(e.event_time)}</bdi> : "—"}</span>
         {e.symbol && <SymbolBadge symbol={e.symbol} />}
         <span className="text-body">
           <T en={label.en} ur={label.ur} />
@@ -117,8 +117,8 @@ export default async function Home() {
   const stats = [
     { icon: ChartColumn, value: resultsDay.length, label: { en: `Results ${dayWord.en}`, ur: `رزلٹس ${dayWord.ur}` }, href: "/results" },
     { icon: Coins, value: dividends.length, label: { en: `Dividends announced ${dayWord.en}`, ur: `ڈیویڈنڈ ${dayWord.ur}` }, href: "/latest?type=dividends" },
-    { icon: Users, value: boardWeek.length, label: { en: `Board meetings ${weekWord.en}`, ur: `بورڈ میٹنگز ${weekWord.ur}` }, href: "/upcoming?kind=board" },
-    { icon: CalendarDays, value: closuresWeek.length, label: { en: `Book closures ${weekWord.en}`, ur: `بک کلوژر ${weekWord.ur}` }, href: "/upcoming?kind=closure" },
+    { icon: Users, value: boardWeek.length, label: { en: `Board meetings ${weekWord.en}`, ur: `بورڈ میٹنگز ${weekWord.ur}` }, href: "/calendar?kind=board" },
+    { icon: CalendarDays, value: closuresWeek.length, label: { en: `Book closures ${weekWord.en}`, ur: `بک کلوژر ${weekWord.ur}` }, href: "/calendar?kind=closure" },
   ];
 
   const agenda: AgendaDay[] = week.map((d) => {
@@ -300,7 +300,7 @@ export default async function Home() {
       {/* 7. This week */}
       {agenda.some((d) => d.count > 0) && (
         <section aria-labelledby="week" className="space-y-5">
-          <SectionHeader id="week" size="headline" title={weekend ? { en: "Week ahead", ur: "اگلا ہفتہ" } : { en: "This week", ur: "اس ہفتے" }} href="/upcoming" linkLabel={{ en: "Full calendar", ur: "مکمل کیلنڈر" }} />
+          <SectionHeader id="week" size="headline" title={weekend ? { en: "Week ahead", ur: "اگلا ہفتہ" } : { en: "This week", ur: "اس ہفتے" }} href="/calendar" linkLabel={{ en: "Full calendar", ur: "مکمل کیلنڈر" }} />
           <WeekAgenda days={agenda} initial={initialDay} />
         </section>
       )}
@@ -330,9 +330,9 @@ export default async function Home() {
         <SectionHeader id="features" size="headline" title={{ en: "What you can do here", ur: "یہاں آپ کیا کر سکتے ہیں" }} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: Languages, href: "/latest", en: "Read in Urdu or English", ur: "اردو یا انگریزی میں پڑھیں", d: "Switch any story between English, Urdu or both at the top of the page." },
+            { icon: Languages, href: "/latest", en: "Read in Urdu or English", ur: "اردو یا انگریزی میں پڑھیں", d: "Switch any story between English and Urdu with one tap at the top of the page." },
             { icon: Table2, href: "/results", en: "Track results", ur: "رزلٹس ٹریکر", d: "Every company's latest revenue, profit, EPS and dividend in one sortable table." },
-            { icon: CalendarDays, href: "/upcoming", en: "Dividend & AGM calendar", ur: "ڈیویڈنڈ اور AGM کیلنڈر", d: "Board meetings, AGMs and book closures, day by day." },
+            { icon: CalendarDays, href: "/calendar", en: "Dividend & AGM calendar", ur: "ڈیویڈنڈ اور AGM کیلنڈر", d: "Board meetings, AGMs and book closures, day by day." },
             { icon: Star, href: "/my-stocks", en: "Follow your stocks", ur: "اپنے شیئرز فالو کریں", d: "Pick your companies and see their news first. No account needed." },
           ].map((f) => (
             <Link key={f.href} href={f.href} className="group flex cursor-pointer flex-col gap-4 rounded-[var(--radius-card)] border border-hairline p-6 transition-colors duration-150 hover:bg-surface">

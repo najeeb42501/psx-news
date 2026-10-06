@@ -75,12 +75,23 @@ export type FeedFilters = {
   date?: string;
   page?: number;
   importantOnly?: boolean; // hide routine filings (importance 1)
+  source?: "filings" | "news"; // PSX/SECP announcements only, or business news only
+  sectors?: string[]; // any of these PSX sector names
+  from?: string; // YYYY-MM-DD, Pakistan time
+  to?: string;
+  limit?: number;
 };
 export const PAGE_SIZE = 30;
+const FILING_SOURCES = ["psx_companies", "psx_notices", "secp_notices"];
 
 export async function getFeed(f: FeedFilters = {}): Promise<WebItem[]> {
-  const q = ["select=*", `importance=gte.${f.importantOnly ? 2 : 1}`, "order=sort_time.desc,id.desc", `limit=${PAGE_SIZE}`];
-  if (f.page && f.page > 1) q.push(`offset=${(f.page - 1) * PAGE_SIZE}`);
+  const size = f.limit ?? PAGE_SIZE;
+  const q = ["select=*", `importance=gte.${f.importantOnly ? 2 : 1}`, "order=sort_time.desc,id.desc", `limit=${size}`];
+  if (f.page && f.page > 1) q.push(`offset=${(f.page - 1) * size}`);
+  if (f.source) q.push(`source_id=${f.source === "filings" ? "in" : "not.in"}.(${FILING_SOURCES.join(",")})`);
+  if (f.sectors?.length) q.push(`sector=${enc(inList(f.sectors))}`);
+  if (f.from && /^\d{4}-\d{2}-\d{2}$/.test(f.from)) q.push(`sort_time=gte.${enc(dayStart(f.from))}`);
+  if (f.to && /^\d{4}-\d{2}-\d{2}$/.test(f.to)) q.push(`sort_time=lt.${enc(dayStart(nextDay(f.to)))}`);
   if (f.symbol) q.push(`symbol=eq.${enc(f.symbol.toUpperCase())}`);
   if (f.sector) q.push(`sector=eq.${enc(f.sector)}`);
   const cats = groupCategories(f.type);
@@ -190,5 +201,15 @@ export async function getResults(limit = 300): Promise<WebItem[]> {
 export async function getRelated(symbol: string, excludeId: number, limit = 6): Promise<WebItem[]> {
   return get<WebItem[]>(
     `web_items?select=*&symbol=eq.${enc(symbol.toUpperCase())}&id=neq.${excludeId}&importance=gte.1&order=sort_time.desc&limit=${limit}`,
+  );
+}
+
+/** A light list of recent items (for counts on Home: sectors, dividends, results). */
+export type LiteItem = Pick<WebItem, "id" | "symbol" | "sector" | "category" | "source_id" | "sort_time" | "headline_en" | "body_en" | "source_title" | "facts">;
+export async function getRecentLite(days = 7): Promise<LiteItem[]> {
+  const since = new Date(Date.now() - days * 864e5).toISOString();
+  return get<LiteItem[]>(
+    `web_items?select=id,symbol,sector,category,source_id,sort_time,headline_en,body_en,source_title,facts&importance=gte.1` +
+      `&sort_time=gte.${enc(since)}&order=sort_time.desc&limit=600`,
   );
 }

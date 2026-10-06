@@ -109,7 +109,7 @@ export function StatTile({ figure, change }: { figure: Figure; change?: { text: 
       </div>
       <div className={`tabular text-headline ${TONE[figure.tone]}`}>
         <span className="ui-en">{figure.value}</span>
-        <span className="ui-ur ur ur-tight text-title">
+        <span className="ui-ur ur ur-tight block whitespace-nowrap !text-[20px] !leading-[40px]">
           <UrduText text={figure.valueUr} />
         </span>
       </div>

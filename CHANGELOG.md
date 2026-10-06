@@ -196,3 +196,14 @@ From the "ShareKhabar Premium UI Redesign" brief. Built on the Phase 2 branch.
 - **One date style:** "2 Oct" in lists, "Friday 2 October 2026, 3:45 pm" on item pages, "Today / Yesterday / Sat 3 Oct" day headers.
 - **/design** (admin only): every component and state with real items, for approval before the pages are rebuilt.
 - The Next.js development badge is turned off.
+
+## v1.1 Redesign – Step 2: Home and item page (2026-10-06, branch `v1.1-redesign`)
+
+Following the updated brief (visual add-on and new home page).
+- **New site chrome everywhere:** one-row header, phone tab bar, new footer, one 1200px container.
+- **Cover images** (`components/ui/cover.tsx`), drawn as inline SVG from our own data: data cards for filings (symbol, the main figure, mini profit chart when 2+ periods exist), our own abstract topic artwork for news (21 topics), monogram fallback. Muted category colours, light and dark, all ≥ 4.5:1. No photos, logos or AI images.
+- **Home** rebuilt as a front page: hero (compact one-line greeting for returning visitors, switched before paint), today at a glance, your stocks, top stories, results carousel, latest updates (filings / economy tabs), this week day strip, sectors, what you can do, how it works, stay updated. Weekends say "Weekend recap" and "Week ahead". Sections without data are hidden; "Learn the basics" waits for the Learn articles.
+- **Item page** rebuilt as an article: headline, date and source once, subheading, cover, key-figure tiles, what happened, what's next (dates from the filing), original filing button, share bar, related stories.
+- **New pages:** `/latest` (the filterable feed moved off Home) and `/sector/[slug]` (10 sectors).
+- Meeting times normalised ("3:00 pm"); PSX open/closed from regular trading hours (public holidays not known yet).
+- Lighthouse mobile: Home 82 / item 84 performance, accessibility 98 / 100, layout shift 0. Load time (LCP ~4 s) is the performance phase's job.

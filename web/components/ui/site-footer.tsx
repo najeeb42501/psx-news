@@ -26,7 +26,9 @@ export function SiteFooter() {
             <span className="ui-ur ur">{BRAND.taglineUr}</span>
           </p>
           <div className="space-y-1 pt-2 text-caption text-fg-tertiary">
-            <p>{DISCLAIMER_EN}</p>
+            <p dir="ltr" className="rtl:text-right">
+              {DISCLAIMER_EN}
+            </p>
             <p className="ur disclaimer-ur" lang="ur">
               {DISCLAIMER_UR}
             </p>

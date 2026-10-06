@@ -246,3 +246,59 @@ dialog.sheet[open] {
 html:not([dir="rtl"]) .disclaimer-ur {
   text-align: left;
 }
+
+/* Cover images (components/ui/cover.tsx): muted category colours, used only inside covers.
+   --cover-bg background, --cover-fg figures and symbols, --cover-ink pattern and small text. */
+.cover-results { --cover-bg: #e8f0fb; --cover-fg: #1e4e8c; --cover-ink: #3f6aa3; }
+.cover-dividends { --cover-bg: #e6f4ea; --cover-fg: #1e6b35; --cover-ink: #34704a; }
+.cover-corporate { --cover-bg: #efeafb; --cover-fg: #5b3fa3; --cover-ink: #7058b0; }
+.cover-meetings { --cover-bg: #fbf1de; --cover-fg: #7a4f00; --cover-ink: #7f5c18; }
+.cover-economy { --cover-bg: #edf0f4; --cover-fg: #33445a; --cover-ink: #57677c; }
+.cover-regulatory { --cover-bg: #e3f3f1; --cover-fg: #0f5e58; --cover-ink: #2f746d; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .cover-results { --cover-bg: #14233a; --cover-fg: #9cc0f5; --cover-ink: #6f95c9; }
+  html:not([data-theme="light"]) .cover-dividends { --cover-bg: #13291b; --cover-fg: #8fd8a2; --cover-ink: #62a875; }
+  html:not([data-theme="light"]) .cover-corporate { --cover-bg: #241b3a; --cover-fg: #c2b0f2; --cover-ink: #9483c4; }
+  html:not([data-theme="light"]) .cover-meetings { --cover-bg: #2e2412; --cover-fg: #f0c878; --cover-ink: #bf9d58; }
+  html:not([data-theme="light"]) .cover-economy { --cover-bg: #1c222b; --cover-fg: #b4c0cf; --cover-ink: #8593a5; }
+  html:not([data-theme="light"]) .cover-regulatory { --cover-bg: #12282a; --cover-fg: #8ed9cf; --cover-ink: #62aaa1; }
+}
+html[data-theme="dark"] .cover-results { --cover-bg: #14233a; --cover-fg: #9cc0f5; --cover-ink: #6f95c9; }
+html[data-theme="dark"] .cover-dividends { --cover-bg: #13291b; --cover-fg: #8fd8a2; --cover-ink: #62a875; }
+html[data-theme="dark"] .cover-corporate { --cover-bg: #241b3a; --cover-fg: #c2b0f2; --cover-ink: #9483c4; }
+html[data-theme="dark"] .cover-meetings { --cover-bg: #2e2412; --cover-fg: #f0c878; --cover-ink: #bf9d58; }
+html[data-theme="dark"] .cover-economy { --cover-bg: #1c222b; --cover-fg: #b4c0cf; --cover-ink: #8593a5; }
+html[data-theme="dark"] .cover-regulatory { --cover-bg: #12282a; --cover-fg: #8ed9cf; --cover-ink: #62aaa1; }
+
+/* Edge-to-edge bands (Home hero) inside the page container. */
+.full-bleed {
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+}
+body {
+  overflow-x: clip;
+}
+
+/* Image hover: a gentle 1.02 lift over 200 ms (not when reduced motion is set, see above). */
+.lift svg,
+.lift img {
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.lift:hover svg,
+.lift:hover img {
+  transform: scale(1.02);
+}
+
+/* Home hero: new visitors get the full hero (lead story inside it); returning visitors
+   (<html data-returning>, set before paint) get a one-line greeting and the lead moves into Top stories. */
+html[data-returning] .hero-full,
+html:not([data-returning]) .hero-compact,
+html:not([data-returning]) .top-lead {
+  display: none;
+}
+@media (min-width: 1024px) {
+  html[data-returning] .top-grid {
+    grid-column: span 6 / span 6;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

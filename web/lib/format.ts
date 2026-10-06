@@ -90,5 +90,23 @@ export function formatRowTime(iso: string | null | undefined, now: Date): string
 
 /** The current time, for pages that show "Today" / relative dates (kept out of render bodies). */
 export function currentTime(): Date {
-  return new Date();
+  // SK_NOW (server env, previews only) pretends it is another moment, e.g. a weekend for screenshots.
+  const fake = process.env.SK_NOW;
+  return fake ? new Date(fake) : new Date();
+}
+
+/** Meeting times as filings write them ("3:00 P.M", "11.30 a.m.", "1100 hours") -> "3:00 pm". */
+export function formatClock(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const m = raw.match(/(\d{1,2})[:.]?(\d{2})?\s*(a\.?\s?m\.?|p\.?\s?m\.?|hours|hrs)?/i);
+  if (!m) return raw;
+  let h = Number(m[1]);
+  const min = m[2] ?? "00";
+  const suffix = (m[3] ?? "").toLowerCase().replace(/[.\s]/g, "");
+  if (suffix === "hours" || suffix === "hrs" || (!suffix && h > 12)) {
+    const pm = h >= 12;
+    h = h % 12 || 12;
+    return `${h}:${min} ${pm ? "pm" : "am"}`;
+  }
+  return suffix ? `${h}:${min} ${suffix}` : `${h}:${min}`;
 }

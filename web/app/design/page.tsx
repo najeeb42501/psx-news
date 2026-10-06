@@ -25,8 +25,6 @@ import {
   StatTile,
   SymbolBadge,
 } from "@/components/ui/primitives";
-import { SiteFooter } from "@/components/ui/site-footer";
-import { SiteHeader } from "@/components/ui/site-header";
 import { SnackbarView } from "@/components/ui/snackbar";
 import { TabBar } from "@/components/ui/tab-bar";
 import { isNews } from "@/lib/categories";
@@ -37,8 +35,6 @@ import { currentTime, formatNumber, formatPlainDate, formatShortDate } from "@/l
 export const metadata: Metadata = { title: "Design system", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
-// Until the pages are rebuilt (step 2), the root layout still renders the old header and footer.
-const HIDE_OLD = "[data-old-chrome]{display:none!important}[data-old-main]{max-width:none!important;padding:0!important}";
 
 const COLOURS: { token: string; light: string; dark: string; use: string; fg?: boolean }[] = [
   { token: "background", light: "#FFFFFF", dark: "#000000", use: "Page" },
@@ -156,9 +152,7 @@ export default async function DesignPage() {
 
   return (
     <>
-      <style>{HIDE_OLD}</style>
-      <SiteHeader />
-      <div className="page-container space-y-16 pb-16 pt-10 md:space-y-20 md:pt-16">
+      <div className="space-y-16 pb-16 pt-10 md:space-y-20 md:pt-16">
         <header dir="ltr" className="space-y-3 rtl:text-end">
           <p className="eyebrow text-fg-tertiary">ShareKhabar · v1.1 redesign · step 1</p>
           <h1 className="text-display-sm md:text-display">Design system</h1>
@@ -400,8 +394,6 @@ export default async function DesignPage() {
           </div>
         </Section>
       </div>
-      <SiteFooter />
-      <TabBar />
     </>
   );
 }

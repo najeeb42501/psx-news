@@ -19,3 +19,6 @@ Thumbs.db
 
 # Local tool output (graphify knowledge graph)
 graphify-out/
+
+# Local Claude Code skills (installed per machine)
+.claude/skills/
